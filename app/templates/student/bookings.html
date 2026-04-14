@@ -1,0 +1,552 @@
+{% extends "base.html" %}
+{% block title %}Minhas Reservas{% endblock %}
+
+{% block extra_css %}
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+
+/* ── Top bar ── */
+.bk-topbar {
+  background: linear-gradient(135deg, #FF6B35 0%, #e0531d 100%);
+  color: #fff;
+  padding: 14px 16px 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+}
+.bk-topbar h1 { font-size: 1.1rem; font-weight: 700; margin: 0; flex: 1; }
+.bk-topbar a  { color: rgba(255,255,255,.85); font-size: .82rem; text-decoration: none; }
+
+/* ── Tab strip ── */
+.tab-strip {
+  display: flex;
+  background: #fff;
+  border-bottom: 2px solid #e9ecef;
+  position: sticky;
+  top: 54px;
+  z-index: 190;
+}
+.tab-btn {
+  flex: 1;
+  padding: 12px 8px;
+  font-size: .82rem;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: #6c757d;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color .15s, border-color .15s;
+}
+.tab-btn.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+}
+
+/* ── Content panels ── */
+.tab-panel { display: none; padding: 0 12px 80px; }
+.tab-panel.active { display: block; }
+
+/* ── Booking card ── */
+.bk-card {
+  background: #fff;
+  border-radius: 16px;
+  border: 1.5px solid #e9ecef;
+  padding: 14px 16px;
+  margin: 10px 0;
+  box-shadow: 0 1px 4px rgba(0,0,0,.04);
+  position: relative;
+  overflow: hidden;
+}
+.bk-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  background: var(--card-color, var(--primary-color));
+  border-radius: 4px 0 0 4px;
+}
+.bk-card.today   { --card-color: #198754; border-color: #c3e6cb; }
+.bk-card.soon    { --card-color: #e0a800; }
+.bk-card.future  { --card-color: var(--primary-color); }
+.bk-card.cancelled { --card-color: #adb5bd; opacity: .65; }
+
+.bk-date-badge {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  background: #f8f9fa;
+  border-radius: 10px;
+  padding: 6px 10px;
+  min-width: 44px;
+  flex-shrink: 0;
+  text-align: center;
+}
+.bk-date-badge .month { font-size: .6rem; text-transform: uppercase; color: #6c757d; }
+.bk-date-badge .day   { font-size: 1.3rem; font-weight: 800; line-height: 1.1; color: #212529; }
+.bk-card.today .bk-date-badge { background: #d1e7dd; }
+.bk-card.today .bk-date-badge .day { color: #198754; }
+
+.bk-info { flex: 1; min-width: 0; }
+.bk-time { font-size: .95rem; font-weight: 700; }
+.bk-meta { font-size: .75rem; color: #6c757d; margin-top: 2px; }
+
+/* Cancel button */
+.btn-cancel-bk {
+  background: none;
+  border: 1.5px solid #dc3545;
+  color: #dc3545;
+  border-radius: 10px;
+  padding: 7px 12px;
+  font-size: .75rem;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all .15s;
+}
+.btn-cancel-bk:hover { background: #dc3545; color: #fff; }
+.btn-cancel-bk:disabled { opacity: .45; cursor: not-allowed; }
+
+/* Locked cancel */
+.cancel-locked {
+  font-size: .7rem;
+  color: #6c757d;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+/* Today badge */
+.badge-today {
+  background: #198754;
+  color: #fff;
+  border-radius: 6px;
+  padding: 2px 7px;
+  font-size: .65rem;
+  font-weight: 700;
+  letter-spacing: .3px;
+}
+
+/* Recurring card */
+.rec-card {
+  background: #fff;
+  border-radius: 14px;
+  border: 1.5px solid #dee2e6;
+  padding: 14px 16px;
+  margin: 10px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.rec-icon {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: #fff3ec;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--primary-color);
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+.rec-info { flex: 1; min-width: 0; }
+.rec-title { font-weight: 700; font-size: .9rem; }
+.rec-meta  { font-size: .75rem; color: #6c757d; margin-top: 2px; }
+.btn-stop-rec {
+  background: none;
+  border: 1.5px solid #adb5bd;
+  color: #6c757d;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: .72rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.btn-stop-rec:hover { border-color: #dc3545; color: #dc3545; }
+
+/* Empty state */
+.empty-state { text-align: center; padding: 48px 20px; color: #6c757d; }
+.empty-state i { font-size: 2.5rem; opacity: .25; display: block; margin-bottom: 10px; }
+
+/* Bottom nav */
+.bottom-nav {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 60px;
+  background: #fff;
+  border-top: 1px solid #e9ecef;
+  display: flex;
+  z-index: 300;
+  box-shadow: 0 -2px 10px rgba(0,0,0,.06);
+}
+.bottom-nav a {
+  flex: 1;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 3px;
+  font-size: .63rem;
+  color: #adb5bd;
+  text-decoration: none;
+}
+.bottom-nav a.active, .bottom-nav a:hover { color: var(--primary-color); }
+.bottom-nav a i { font-size: 1.1rem; }
+
+/* ── Cancel reason modal (bottom sheet) ── */
+.modal-bottom {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: #fff;
+  border-radius: 20px 20px 0 0;
+  padding: 20px 20px 32px;
+  transform: translateY(100%);
+  transition: transform .3s cubic-bezier(.4,0,.2,1);
+  z-index: 1050;
+}
+.modal-bottom.open { transform: translateY(0); }
+.modal-backdrop-custom {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.45); z-index: 1040; display: none;
+}
+.modal-backdrop-custom.open { display: block; }
+.modal-handle {
+  width: 40px; height: 4px;
+  background: #dee2e6; border-radius: 2px; margin: 0 auto 16px;
+}
+.reason-option {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 12px;
+  border: 1.5px solid #e9ecef;
+  border-radius: 10px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  font-size: .85rem;
+  transition: border-color .15s;
+}
+.reason-option.selected { border-color: var(--primary-color); background: #fff8f5; }
+.reason-option input { accent-color: var(--primary-color); }
+
+@media (min-width: 576px) {
+  .tab-panel { max-width: 540px; margin: 0 auto; }
+  .bottom-nav { max-width: 540px; left: 50%; transform: translateX(-50%); border-radius: 12px 12px 0 0; }
+  .modal-bottom { max-width: 480px; left: 50%; transform: translateX(-50%) translateY(100%); border-radius: 20px; bottom: 20px; }
+  .modal-bottom.open { transform: translateX(-50%) translateY(0); }
+}
+</style>
+{% endblock %}
+
+{% block body %}
+{# ── Top bar ── #}
+<div class="bk-topbar">
+  <a href="{{ url_for('student.schedule') }}" style="color:#fff;">
+    <i class="fas fa-arrow-left"></i>
+  </a>
+  <h1><i class="fas fa-calendar-check me-2"></i>Minhas Reservas</h1>
+</div>
+
+{# ── Tab strip ── #}
+<div class="tab-strip">
+  <button class="tab-btn active" onclick="switchTab('upcoming', this)">
+    <i class="fas fa-clock me-1"></i>Próximas
+    {% if upcoming %}<span class="badge bg-primary ms-1" style="font-size:.6rem;">{{ upcoming|length }}</span>{% endif %}
+  </button>
+  <button class="tab-btn" onclick="switchTab('recurring', this)">
+    <i class="fas fa-sync-alt me-1"></i>Recorrentes
+    {% if active_recurring %}<span class="badge bg-primary ms-1" style="font-size:.6rem;">{{ active_recurring|length }}</span>{% endif %}
+  </button>
+</div>
+
+{# ──────────────────────────
+   PANEL: Próximas Aulas
+────────────────────────── #}
+<div class="tab-panel active" id="panel-upcoming">
+  {% if upcoming %}
+    {% for booking in upcoming %}
+      {% set slot = booking.slot %}
+      {% set days_away = (slot.date - today).days %}
+      {% set card_cls = 'today' if days_away == 0 else ('soon' if days_away <= 2 else 'future') %}
+      {% set can_cancel, deadline_hours = cancel_info[booking.id] %}
+
+      <div class="bk-card {{ card_cls }}" id="bk-card-{{ booking.id }}">
+        <div class="d-flex gap-3 align-items-start">
+          {# Date badge #}
+          <div class="bk-date-badge">
+            <span class="month">{{ slot.date.strftime('%b') | upper }}</span>
+            <span class="day">{{ slot.date.day }}</span>
+          </div>
+
+          {# Info #}
+          <div class="bk-info">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <span class="bk-time">{{ slot.start_time.strftime('%H:%M') }} – {{ slot.end_time.strftime('%H:%M') }}</span>
+              {% if days_away == 0 %}
+                <span class="badge-today">Hoje</span>
+              {% elif days_away == 1 %}
+                <span class="badge bg-warning text-dark" style="font-size:.62rem;">Amanhã</span>
+              {% endif %}
+              {% if booking.recurring_id %}
+                <span class="badge bg-info" style="font-size:.62rem;">Recorrente</span>
+              {% endif %}
+            </div>
+            <div class="bk-meta mt-1">
+              {% if slot.modality %}
+                <span class="me-2">
+                  <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:{{ slot.modality.color }};margin-right:4px;"></span>
+                  {{ slot.modality.name }}
+                </span>
+              {% endif %}
+              <span>
+                <i class="fas fa-user-tie opacity-50 me-1"></i>
+                {{ slot.provider.name if slot.provider else '—' }}
+              </span>
+            </div>
+            <div class="bk-meta" style="color:#6c757d;">
+              {{ weekday_long[slot.date.weekday()] }}, {{ slot.date.strftime('%d/%m/%Y') }}
+            </div>
+          </div>
+
+          {# Cancel action #}
+          <div class="d-flex flex-column align-items-end gap-1">
+            {% if can_cancel %}
+              <button class="btn-cancel-bk"
+                      onclick="openCancelModal({{ booking.id }}, '{{ slot.date.strftime('%d/%m') }}', '{{ slot.start_time.strftime('%H:%M') }}')">
+                <i class="fas fa-times me-1"></i>Cancelar
+              </button>
+              <span class="cancel-locked">
+                <i class="fas fa-clock opacity-50"></i>
+                até {{ deadline_hours }}h antes
+              </span>
+            {% else %}
+              <span class="cancel-locked">
+                <i class="fas fa-lock"></i>
+                Bloqueado
+              </span>
+              <span style="font-size:.65rem; color:#adb5bd;">prazo encerrado</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state">
+      <i class="far fa-calendar-plus"></i>
+      <h5>Nenhuma aula agendada</h5>
+      <p>Você não possui aulas futuras marcadas.</p>
+      <a href="{{ url_for('student.schedule') }}" class="btn btn-primary btn-sm">
+        <i class="fas fa-plus me-1"></i>Agendar agora
+      </a>
+    </div>
+  {% endif %}
+</div>
+
+{# ──────────────────────────
+   PANEL: Recorrentes
+────────────────────────── #}
+<div class="tab-panel" id="panel-recurring">
+  {% if active_recurring %}
+    {% set day_names = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'] %}
+    {% set freq_labels = {'weekly': 'Semanal', 'biweekly': 'Quinzenal'} %}
+
+    {% for rec in active_recurring %}
+      <div class="rec-card" id="rec-card-{{ rec.id }}">
+        <div class="rec-icon">
+          <i class="fas fa-sync-alt"></i>
+        </div>
+        <div class="rec-info">
+          <div class="rec-title">
+            {{ day_names[rec.weekday] }}s às {{ rec.start_time.strftime('%H:%M') }}
+          </div>
+          <div class="rec-meta">
+            {{ freq_labels.get(rec.frequency.value, rec.frequency.value) }}
+            {% if rec.modality %} · {{ rec.modality.name }}{% endif %}
+            {% if rec.provider %} · {{ rec.provider.name.split()[0] }}{% endif %}
+          </div>
+          <div class="rec-meta">
+            {% if rec.valid_until %}
+              Até {{ rec.valid_until.strftime('%d/%m/%Y') }}
+            {% else %}
+              Sem data de encerramento
+            {% endif %}
+          </div>
+        </div>
+        <button class="btn-stop-rec"
+                onclick="stopRecurring({{ rec.id }}, this)">
+          <i class="fas fa-stop me-1"></i>Parar
+        </button>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state">
+      <i class="fas fa-sync-alt"></i>
+      <h5>Nenhuma recorrência ativa</h5>
+      <p>Para criar, abra um horário disponível e toque em <i class="fas fa-sync-alt"></i>.</p>
+      <a href="{{ url_for('student.schedule') }}" class="btn btn-outline-primary btn-sm mt-2">
+        <i class="fas fa-calendar-alt me-1"></i>Ver Grade
+      </a>
+    </div>
+  {% endif %}
+</div>
+
+{# ── Bottom nav ── #}
+<nav class="bottom-nav">
+  <a href="{{ url_for('student.schedule') }}">
+    <i class="fas fa-calendar-alt"></i><span>Agendar</span>
+  </a>
+  <a href="{{ url_for('student.bookings') }}" class="active">
+    <i class="far fa-calendar-check"></i><span>Reservas</span>
+  </a>
+  <a href="{{ url_for('student.bookings_history') }}">
+    <i class="fas fa-history"></i><span>Histórico</span>
+  </a>
+</nav>
+
+{# ── Backdrop ── #}
+<div class="modal-backdrop-custom" id="backdrop" onclick="closeModal()"></div>
+
+{# ── Cancel modal ── #}
+<div class="modal-bottom" id="modal-cancel">
+  <div class="modal-handle"></div>
+  <h6 class="fw-bold mb-1">Cancelar aula</h6>
+  <p class="text-muted small mb-3" id="cancel-detail"></p>
+
+  <p class="fw-semibold small mb-2">Motivo (opcional):</p>
+  <div id="reason-list">
+    {% set reasons = ['Compromisso pessoal', 'Motivo de saúde', 'Trabalho', 'Outro'] %}
+    {% for r in reasons %}
+      <div class="reason-option {{ 'selected' if loop.first }}"
+           data-reason="{{ r }}"
+           onclick="selectReason(this)">
+        <input type="radio" name="cancel_reason" value="{{ r }}" {{ 'checked' if loop.first }}>
+        {{ r }}
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="alert alert-warning mt-3 mb-0" style="font-size:.8rem; border-radius:10px;">
+    <i class="fas fa-info-circle me-1"></i>
+    Os créditos serão estornados para sua assinatura.
+  </div>
+
+  <div class="d-flex gap-2 mt-3">
+    <button class="btn btn-secondary flex-fill" onclick="closeModal()">Voltar</button>
+    <button class="btn btn-danger flex-fill fw-bold" id="btn-confirm-cancel" onclick="confirmCancel()">
+      <i class="fas fa-times me-1"></i>Confirmar cancelamento
+    </button>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let pendingCancelId  = null;
+let selectedReason   = 'Compromisso pessoal';
+
+/* ── Tabs ── */
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('panel-' + name)?.classList.add('active');
+}
+
+/* ── Cancel flow ── */
+function openCancelModal(bookingId, dateLabel, timeLabel) {
+  pendingCancelId = bookingId;
+  document.getElementById('cancel-detail').textContent =
+    `Aula do dia ${dateLabel} às ${timeLabel}`;
+  document.getElementById('modal-cancel').classList.add('open');
+  document.getElementById('backdrop').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal() {
+  document.querySelectorAll('.modal-bottom').forEach(m => m.classList.remove('open'));
+  document.getElementById('backdrop')?.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function selectReason(el) {
+  document.querySelectorAll('.reason-option').forEach(r => {
+    r.classList.remove('selected');
+    r.querySelector('input').checked = false;
+  });
+  el.classList.add('selected');
+  el.querySelector('input').checked = true;
+  selectedReason = el.dataset.reason;
+}
+
+function confirmCancel() {
+  const btn = document.getElementById('btn-confirm-cancel');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>';
+
+  fetch(`/student/booking/${pendingCancelId}/cancel`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason: selectedReason }),
+  })
+  .then(r => r.json().then(d => ({ ok: r.ok, d })))
+  .then(({ ok, d }) => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-times me-1"></i>Confirmar cancelamento';
+    if (!ok) {
+      showToast(d.error || 'Erro ao cancelar.', 'danger');
+      return;
+    }
+    closeModal();
+    // Remove card from DOM
+    const card = document.getElementById('bk-card-' + pendingCancelId);
+    if (card) {
+      card.style.transition = 'opacity .3s, max-height .3s';
+      card.style.opacity = '0';
+      card.style.maxHeight = '0';
+      card.style.overflow = 'hidden';
+      setTimeout(() => card.remove(), 350);
+    }
+    showToast('Aula cancelada. Créditos estornados.', 'success');
+  })
+  .catch(() => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-times me-1"></i>Confirmar cancelamento';
+    showToast('Erro de conexão.', 'danger');
+  });
+}
+
+/* ── Stop recurring ── */
+function stopRecurring(recId, btn) {
+  if (!confirm('Parar esta série recorrente? As aulas futuras não serão canceladas automaticamente.')) return;
+  btn.disabled = true;
+  // No API endpoint yet for stopping recurring — cancel via AJAX
+  fetch(`/student/recurring/${recId}/stop`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}',
+  })
+  .then(r => r.ok ? r.json() : Promise.reject(r))
+  .then(() => {
+    const card = document.getElementById('rec-card-' + recId);
+    if (card) { card.style.opacity = '0'; setTimeout(() => card.remove(), 300); }
+    showToast('Série recorrente encerrada.', 'success');
+  })
+  .catch(() => {
+    btn.disabled = false;
+    showToast('Erro ao parar recorrência.', 'danger');
+  });
+}
+
+/* ── Toast ── */
+function showToast(msg, type = 'info') {
+  const palette = { success:'#198754', danger:'#dc3545', warning:'#e0a800', info:'#0d6efd' };
+  const t = document.createElement('div');
+  t.style.cssText = `position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:9999;
+    background:${palette[type]};color:#fff;padding:10px 20px;border-radius:24px;
+    font-size:.85rem;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.2);white-space:nowrap;`;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => { t.style.opacity='0'; t.style.transition='opacity .3s'; }, 2800);
+  setTimeout(() => t.remove(), 3200);
+}
+</script>
+{% endblock %}

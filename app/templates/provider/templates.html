@@ -1,0 +1,412 @@
+{% extends "provider/base.html" %}
+
+{% block title %}Templates — Prestador{% endblock %}
+{% block page_title %}<i class="fas fa-layer-group me-2 text-primary"></i>Templates de Disponibilidade{% endblock %}
+
+{% block extra_css %}
+{{ super() }}
+<style>
+.tpl-card {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+  padding: 18px 20px;
+  margin-bottom: 12px;
+  transition: box-shadow .15s;
+}
+.tpl-card:hover { box-shadow: 0 3px 10px rgba(0,0,0,.08); }
+.tpl-card.inactive { opacity: .55; }
+.weekday-badge {
+  display: inline-block;
+  width: 28px; height: 28px; line-height: 28px;
+  text-align: center; border-radius: 50%;
+  font-size: .7rem; font-weight: 700;
+  background: var(--primary-color); color: #fff;
+  margin-right: 3px;
+}
+.weekday-badge.off { background: #e9ecef; color: #adb5bd; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <p class="text-muted small mb-0">
+      Templates definem disponibilidade recorrente. O sistema gera slots automaticamente.
+    </p>
+  </div>
+  <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalCreateTemplate">
+    <i class="fas fa-plus me-1"></i>Novo Template
+  </button>
+</div>
+
+{# ── Template list ── #}
+{% if templates %}
+  {% set days_abbr = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'] %}
+  {% for t in templates %}
+    <div class="tpl-card {{ 'inactive' if not t.is_active }}" id="tpl-card-{{ t.id }}">
+      <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+        <div>
+          {# Weekday pills #}
+          <div class="mb-2">
+            {% for i in range(7) %}
+              <span class="weekday-badge {{ '' if i in t.weekdays else 'off' }}">
+                {{ days_abbr[i][0] }}
+              </span>
+            {% endfor %}
+          </div>
+          <div class="fw-bold">
+            {{ t.start_time.strftime('%H:%M') }} – {{ t.end_time.strftime('%H:%M') }}
+            <span class="text-muted fw-normal ms-1" style="font-size:.8rem;">
+              · {{ t.slot_duration_min }}min/aula
+            </span>
+          </div>
+          <div class="text-muted small mt-1">
+            <i class="fas fa-users me-1"></i>{{ t.max_capacity }} vagas
+            {% if t.modality %}
+              <span class="ms-2">
+                <span class="badge" style="background:{{ t.modality.color }}; font-size:.65rem;">
+                  {{ t.modality.name }}
+                </span>
+              </span>
+            {% endif %}
+            <span class="ms-2">
+              <i class="far fa-calendar me-1"></i>
+              {{ t.valid_from.strftime('%d/%m/%Y') }}
+              {% if t.valid_until %}→ {{ t.valid_until.strftime('%d/%m/%Y') }}{% else %}em aberto{% endif %}
+            </span>
+          </div>
+        </div>
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+          {% if t.is_active %}
+            <span class="badge bg-success" style="font-size:.68rem;">Ativo</span>
+            <button class="btn btn-xs btn-outline-secondary"
+                    style="font-size:.72rem; padding:3px 10px;"
+                    onclick="openEditTemplate({{ t.id }}, {{ t.max_capacity }},
+                      '{{ t.valid_until.strftime('%Y-%m-%d') if t.valid_until else '' }}',
+                      {{ t.modality_id or 'null' }})">
+              <i class="fas fa-edit me-1"></i>Editar
+            </button>
+            <button class="btn btn-xs btn-outline-danger"
+                    style="font-size:.72rem; padding:3px 10px;"
+                    onclick="deactivateTemplate({{ t.id }}, this)">
+              <i class="fas fa-power-off me-1"></i>Desativar
+            </button>
+          {% else %}
+            <span class="badge bg-secondary" style="font-size:.68rem;">Inativo</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+{% else %}
+  <div class="text-center py-5 bg-white rounded-3 border">
+    <i class="fas fa-layer-group fa-3x text-muted mb-3 opacity-25 d-block"></i>
+    <p class="text-muted mb-2">Nenhum template cadastrado.</p>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalCreateTemplate">
+      <i class="fas fa-plus me-1"></i>Criar primeiro template
+    </button>
+  </div>
+{% endif %}
+{% endblock %}
+
+{# ──────────────────────────────────────────────────────────────────────────
+   MODALS
+────────────────────────────────────────────────────────────────────────── #}
+{% block page_js %}
+
+{# ── Modal: Criar Template ── #}
+<div class="modal fade" id="modalCreateTemplate" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-primary text-white">
+        <h6 class="modal-title"><i class="fas fa-layer-group me-2"></i>Novo Template de Disponibilidade</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        {# Weekdays #}
+        <div class="mb-4">
+          <label class="form-label fw-semibold">Dias da semana <span class="text-danger">*</span></label>
+          <div class="d-flex gap-2 flex-wrap" id="weekday-picker">
+            {% set day_names = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'] %}
+            {% for i in range(7) %}
+              <button type="button"
+                      class="btn btn-sm weekday-btn {{ 'btn-primary' if i < 5 else 'btn-outline-secondary' }}"
+                      data-day="{{ i }}"
+                      onclick="toggleWeekday(this)">
+                {{ day_names[i] }}
+              </button>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small">Início do expediente <span class="text-danger">*</span></label>
+            <input type="time" id="ct-start" class="form-control" value="07:00">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small">Fim do expediente <span class="text-danger">*</span></label>
+            <input type="time" id="ct-end" class="form-control" value="18:00">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small">Duração por aula (min) <span class="text-danger">*</span></label>
+            <select id="ct-duration" class="form-select">
+              <option value="30">30 min</option>
+              <option value="45">45 min</option>
+              <option value="60" selected>60 min</option>
+              <option value="90">90 min</option>
+              <option value="120">120 min</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold small">Vagas por horário <span class="text-danger">*</span></label>
+            <input type="number" id="ct-capacity" class="form-control" value="10" min="1">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold small">Modalidade <span class="text-muted">(opcional)</span></label>
+            <select id="ct-modality" class="form-select">
+              <option value="">— Nenhuma —</option>
+              {% for m in modalities %}
+                <option value="{{ m.id }}">{{ m.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div class="row g-3 mb-1">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold small">Vigência a partir de <span class="text-danger">*</span></label>
+            <input type="date" id="ct-valid-from" class="form-control"
+                   value="{{ now().strftime('%Y-%m-%d') }}">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold small">Vigência até <span class="text-muted">(vazio = indeterminado)</span></label>
+            <input type="date" id="ct-valid-until" class="form-control">
+          </div>
+        </div>
+
+        {# Preview #}
+        <div class="alert alert-info mt-3 mb-0 small" id="ct-preview">
+          Selecione os parâmetros para ver o preview de slots gerados.
+        </div>
+      </div>
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btn-confirm-template">
+          <i class="fas fa-magic me-1"></i>Criar e gerar horários
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Modal: Editar Template ── #}
+<div class="modal fade" id="modalEditTemplate" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:420px;">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header">
+        <h6 class="modal-title"><i class="fas fa-edit me-2"></i>Editar Template</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body px-4">
+        <p class="text-muted small">
+          Dias/horários não podem ser alterados para preservar bookings existentes.<br>
+          Crie um novo template se precisar mudar a estrutura.
+        </p>
+        <input type="hidden" id="et-id">
+        <div class="mb-3">
+          <label class="form-label fw-semibold small">Vagas por horário</label>
+          <input type="number" id="et-capacity" class="form-control" min="1">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold small">Vigência até <span class="text-muted">(vazio = indeterminado)</span></label>
+          <input type="date" id="et-valid-until" class="form-control">
+        </div>
+        <div class="mb-1">
+          <label class="form-label fw-semibold small">Modalidade</label>
+          <select id="et-modality" class="form-select">
+            <option value="">— Nenhuma —</option>
+            {% for m in modalities %}
+              <option value="{{ m.id }}">{{ m.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btn-confirm-edit-template">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ─── Weekday picker ─── */
+const selectedWeekdays = new Set([0,1,2,3,4]);  // default Mon–Fri
+
+function toggleWeekday(btn) {
+  const day = parseInt(btn.dataset.day);
+  if (selectedWeekdays.has(day)) {
+    selectedWeekdays.delete(day);
+    btn.classList.replace('btn-primary', 'btn-outline-secondary');
+  } else {
+    selectedWeekdays.add(day);
+    btn.classList.replace('btn-outline-secondary', 'btn-primary');
+  }
+  updatePreview();
+}
+
+/* ─── Preview calculation ─── */
+function updatePreview() {
+  const start  = document.getElementById('ct-start').value;
+  const end    = document.getElementById('ct-end').value;
+  const dur    = parseInt(document.getElementById('ct-duration').value);
+  const cap    = parseInt(document.getElementById('ct-capacity').value) || 0;
+  const from   = document.getElementById('ct-valid-from').value;
+  const until  = document.getElementById('ct-valid-until').value;
+  const el     = document.getElementById('ct-preview');
+
+  if (!start || !end || !selectedWeekdays.size || !from) {
+    el.textContent = 'Selecione os parâmetros para ver o preview de slots gerados.';
+    return;
+  }
+
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  const startMins = sh * 60 + sm;
+  const endMins   = eh * 60 + em;
+  const slotsPerDay = Math.floor((endMins - startMins) / dur);
+
+  // Count days in range
+  const fromDate  = new Date(from + 'T12:00');
+  const untilDate = until ? new Date(until + 'T12:00') : new Date(fromDate.getTime() + 30 * 864e5);
+  let days = 0;
+  const cur = new Date(fromDate);
+  while (cur <= untilDate) {
+    // JS: Sun=0, Mon=1…Sat=6 — PRD: Mon=0…Sun=6
+    const prDay = (cur.getDay() + 6) % 7;
+    if (selectedWeekdays.has(prDay)) days++;
+    cur.setDate(cur.getDate() + 1);
+  }
+
+  const total = days * slotsPerDay;
+  const days_abbr = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+  const daysLabel = [...selectedWeekdays].sort().map(d => days_abbr[d]).join(', ');
+
+  el.innerHTML = `
+    <i class="fas fa-info-circle me-1"></i>
+    <strong>${total} slot(s)</strong> serão gerados —
+    ${daysLabel} · ${slotsPerDay} horário(s)/dia · ${cap} vagas cada
+    ${until ? `(até ${until.split('-').reverse().join('/')})` : '(próximos 30 dias)'}`;
+}
+
+document.querySelectorAll('#ct-start,#ct-end,#ct-duration,#ct-capacity,#ct-valid-from,#ct-valid-until')
+  .forEach(el => el.addEventListener('change', updatePreview));
+
+/* ─── Create template ─── */
+document.getElementById('btn-confirm-template').addEventListener('click', function () {
+  const payload = {
+    weekdays:         [...selectedWeekdays],
+    start_time:       document.getElementById('ct-start').value,
+    end_time:         document.getElementById('ct-end').value,
+    slot_duration_min:parseInt(document.getElementById('ct-duration').value),
+    max_capacity:     parseInt(document.getElementById('ct-capacity').value),
+    modality_id:      document.getElementById('ct-modality').value || null,
+    valid_from:       document.getElementById('ct-valid-from').value,
+    valid_until:      document.getElementById('ct-valid-until').value || null,
+  };
+  if (!payload.weekdays.length || !payload.valid_from) {
+    showToast('Selecione pelo menos um dia e a data de início.', 'warning');
+    return;
+  }
+
+  const btn = this;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Gerando...';
+
+  fetch('/provider/templates/create', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  .then(r => r.json().then(d => ({ ok: r.ok, d })))
+  .then(({ ok, d }) => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-magic me-1"></i>Criar e gerar horários';
+    if (!ok) { showToast(d.error || 'Erro.', 'danger'); return; }
+    bootstrap.Modal.getInstance('#modalCreateTemplate')?.hide();
+    showToast(`Template criado! ${d.slots_created} horário(s) gerado(s).`, 'success');
+    setTimeout(() => location.reload(), 1200);
+  })
+  .catch(() => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-magic me-1"></i>Criar e gerar horários';
+    showToast('Erro de conexão.', 'danger');
+  });
+});
+
+/* ─── Edit template ─── */
+function openEditTemplate(id, capacity, validUntil, modalityId) {
+  document.getElementById('et-id').value            = id;
+  document.getElementById('et-capacity').value      = capacity;
+  document.getElementById('et-valid-until').value   = validUntil;
+  document.getElementById('et-modality').value      = modalityId || '';
+  new bootstrap.Modal('#modalEditTemplate').show();
+}
+
+document.getElementById('btn-confirm-edit-template').addEventListener('click', function () {
+  const id = document.getElementById('et-id').value;
+  const payload = {
+    max_capacity: parseInt(document.getElementById('et-capacity').value),
+    valid_until:  document.getElementById('et-valid-until').value || null,
+    modality_id:  document.getElementById('et-modality').value || null,
+  };
+  fetch(`/provider/templates/${id}/edit`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  .then(r => r.json())
+  .then(d => {
+    bootstrap.Modal.getInstance('#modalEditTemplate')?.hide();
+    showToast('Template atualizado.', 'success');
+    setTimeout(() => location.reload(), 900);
+  });
+});
+
+/* ─── Deactivate template ─── */
+function deactivateTemplate(id, btn) {
+  if (!confirm('Desativar este template? Slots futuros sem inscritos serão cancelados.')) return;
+  btn.disabled = true;
+  fetch(`/provider/templates/${id}/delete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}',
+  })
+  .then(r => r.json())
+  .then(d => {
+    showToast(d.message, 'warning');
+    document.getElementById('tpl-card-' + id)?.classList.add('inactive');
+    btn.closest('.tpl-card').querySelector('.badge').textContent = 'Inativo';
+    btn.closest('.tpl-card').querySelector('.badge').className   = 'badge bg-secondary';
+    btn.remove();
+  });
+}
+
+/* ─── Toast ─── */
+function showToast(msg, type = 'info') {
+  const colors = { success:'#198754', danger:'#dc3545', warning:'#e0a800', info:'#0d6efd' };
+  const div = document.createElement('div');
+  div.style.cssText = `position:fixed;bottom:20px;right:20px;z-index:9999;background:${colors[type]||colors.info};
+    color:#fff;padding:10px 18px;border-radius:8px;font-size:.85rem;box-shadow:0 4px 12px rgba(0,0,0,.2);max-width:320px;`;
+  div.textContent = msg;
+  document.body.appendChild(div);
+  setTimeout(() => { div.style.opacity='0'; div.style.transition='opacity .4s'; }, 3200);
+  setTimeout(() => div.remove(), 3700);
+}
+</script>
+{% endblock %}

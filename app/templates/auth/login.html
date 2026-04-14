@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<div class="min-vh-100 d-flex align-items-center justify-content-center" style="background:linear-gradient(135deg,#FF6B35,#004E89)">
+  <div class="card shadow-lg" style="width:100%;max-width:400px;border-radius:16px">
+    <div class="card-body p-4">
+      <div class="text-center mb-4">
+        <div style="width:56px;height:56px;background:linear-gradient(135deg,#FF6B35,#e0531d);border-radius:14px;display:inline-flex;align-items:center;justify-content:center;">
+          <i class="fas fa-dumbbell text-white fs-4"></i>
+        </div>
+        <h4 class="mt-3 fw-bold">Academia</h4>
+        <p class="text-muted small">Módulo de Agendamento</p>
+      </div>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for cat, msg in messages %}
+        <div class="alert alert-{{ 'danger' if cat == 'error' else cat }} py-2 small">{{ msg }}</div>
+        {% endfor %}
+      {% endif %}
+      {% endwith %}
+
+      <form method="POST" action="{{ url_for('auth.login') }}">
+        <div class="mb-3">
+          <label class="form-label fw-semibold small">E-mail</label>
+          <input type="email" name="email" class="form-control" placeholder="seu@email.com" required autofocus>
+        </div>
+        <div class="mb-4">
+          <label class="form-label fw-semibold small">Senha</label>
+          <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+        </div>
+        <button type="submit" class="btn btn-primary w-100 fw-semibold">Entrar</button>
+      </form>
+
+      <hr class="my-3">
+      <p class="text-center text-muted small mb-0">
+        <strong>Prestador:</strong> use role <code>instructor</code><br>
+        <strong>Aluno:</strong> use role <code>student</code>
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}

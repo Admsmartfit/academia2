@@ -1,0 +1,222 @@
+{% extends "provider/base.html" %}
+
+{% block title %}Dashboard — Prestador{% endblock %}
+{% block page_title %}<i class="fas fa-tachometer-alt me-2 text-primary"></i>Dashboard{% endblock %}
+
+{% block extra_css %}
+{{ super() }}
+<style>
+.slot-row {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+  padding: 14px 18px;
+  margin-bottom: 10px;
+  transition: box-shadow .15s;
+}
+.slot-row:hover { box-shadow: 0 3px 10px rgba(0,0,0,.08); }
+.slot-color-bar {
+  width: 5px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  align-self: stretch;
+  min-height: 36px;
+}
+.occ-bar { height: 6px; border-radius: 3px; background: #e9ecef; overflow: hidden; }
+.occ-fill { height: 100%; border-radius: 3px; }
+.attendee-chip {
+  display: inline-flex; align-items: center;
+  background: #f0f0f0; border-radius: 20px;
+  padding: 2px 8px; font-size: .73rem;
+  gap: 4px; margin: 2px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+{# ── Header ── #}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h5 class="mb-0 fw-bold">Bom dia, {{ current_user.name.split()[0] }}!</h5>
+    <small class="text-muted">
+      {{ today.strftime('%A, %d de %B de %Y') | title }}
+    </small>
+  </div>
+  <a href="{{ url_for('provider.calendar') }}" class="btn btn-primary btn-sm">
+    <i class="fas fa-calendar-alt me-1"></i>Ver Calendário
+  </a>
+</div>
+
+{# ── Stats ── #}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="stat-card orange">
+      <div class="stat-value text-primary">{{ slots | length }}</div>
+      <div class="stat-label">Horários hoje</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card blue">
+      <div class="stat-value" style="color:#0d6efd;">{{ total_booked }}</div>
+      <div class="stat-label">Alunos inscritos</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card green">
+      <div class="stat-value text-success">{{ total_capacity - total_booked }}</div>
+      <div class="stat-label">Vagas disponíveis</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card yellow">
+      <div class="stat-value" style="color:#e0a800;">
+        {% if total_capacity %}
+          {{ ((total_booked / total_capacity) * 100) | round(0) | int }}%
+        {% else %}
+          —
+        {% endif %}
+      </div>
+      <div class="stat-label">Ocupação média</div>
+    </div>
+  </div>
+</div>
+
+{# ── Slots do dia ── #}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h6 class="mb-0 fw-bold">Horários de Hoje</h6>
+  <a href="{{ url_for('provider.calendar') }}" class="btn btn-outline-primary btn-sm">
+    <i class="fas fa-plus me-1"></i>Novo horário
+  </a>
+</div>
+
+{% if slots %}
+  {% for slot in slots %}
+    {% set pct = slot.occupancy_pct %}
+    {% if slot.status == 'cancelled' %}
+      {% set color = '#6c757d' %}
+      {% set fill_class = 'bg-secondary' %}
+    {% elif pct == 0 %}
+      {% set color = '#adb5bd' %}
+      {% set fill_class = 'bg-secondary' %}
+    {% elif pct < 50 %}
+      {% set color = '#28a745' %}
+      {% set fill_class = 'bg-success' %}
+    {% elif pct <= 80 %}
+      {% set color = '#e0a800' %}
+      {% set fill_class = 'bg-warning' %}
+    {% else %}
+      {% set color = '#dc3545' %}
+      {% set fill_class = 'bg-danger' %}
+    {% endif %}
+
+    <div class="slot-row d-flex gap-3 align-items-start
+                {{ 'opacity-50' if slot.status == 'cancelled' }}">
+      <div class="slot-color-bar" style="background: {{ color }};"></div>
+      <div class="flex-grow-1">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <span class="fw-bold">
+              {{ slot.start_time.strftime('%H:%M') }} – {{ slot.end_time.strftime('%H:%M') }}
+            </span>
+            {% if slot.modality %}
+              <span class="badge ms-2"
+                    style="background:{{ slot.modality.color }}; font-size:.68rem;">
+                {{ slot.modality.name }}
+              </span>
+            {% endif %}
+            {% if slot.status == 'cancelled' %}
+              <span class="badge bg-secondary ms-1" style="font-size:.68rem;">Cancelado</span>
+            {% endif %}
+          </div>
+          <div class="text-end">
+            <span class="fw-semibold">{{ slot.booked_count }}/{{ slot.max_capacity }}</span>
+            <div class="text-muted" style="font-size:.72rem;">inscritos</div>
+          </div>
+        </div>
+
+        {# Occupancy bar #}
+        <div class="occ-bar mt-2">
+          <div class="occ-fill {{ fill_class }}" style="width:{{ [pct, 100] | min }}%;"></div>
+        </div>
+
+        {# Actions #}
+        {% if slot.status != 'cancelled' %}
+          <div class="d-flex gap-2 mt-2 flex-wrap">
+            <button class="btn btn-xs btn-outline-primary"
+                    style="font-size:.72rem; padding:3px 10px;"
+                    onclick="toggleAttendees({{ slot.id }}, this)">
+              <i class="fas fa-users me-1"></i>Ver inscritos
+            </button>
+            <a href="{{ url_for('provider.calendar') }}" class="btn btn-xs btn-outline-secondary"
+               style="font-size:.72rem; padding:3px 10px;">
+              <i class="fas fa-edit me-1"></i>Editar
+            </a>
+          </div>
+          <div id="attendees-{{ slot.id }}" class="mt-2" style="display:none;"></div>
+        {% endif %}
+      </div>
+    </div>
+  {% endfor %}
+{% else %}
+  <div class="text-center py-5 bg-white rounded-3 border">
+    <i class="far fa-calendar-times fa-3x text-muted mb-3 opacity-25 d-block"></i>
+    <p class="text-muted mb-2">Sem horários cadastrados para hoje.</p>
+    <a href="{{ url_for('provider.calendar') }}" class="btn btn-primary btn-sm">
+      <i class="fas fa-plus me-1"></i>Abrir calendário
+    </a>
+  </div>
+{% endif %}
+{% endblock %}
+
+{% block page_js %}
+<script>
+function toggleAttendees(slotId, btn) {
+  const container = document.getElementById('attendees-' + slotId);
+  if (container.style.display !== 'none') {
+    container.style.display = 'none';
+    btn.innerHTML = '<i class="fas fa-users me-1"></i>Ver inscritos';
+    return;
+  }
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Carregando...';
+  fetch('/provider/slot/' + slotId + '/attendees')
+    .then(r => r.json())
+    .then(data => {
+      if (!data.attendees.length) {
+        container.innerHTML = '<small class="text-muted">Nenhum inscrito.</small>';
+      } else {
+        container.innerHTML = data.attendees.map(a => {
+          const badge = { confirmed:'primary', completed:'success', cancelled:'secondary', no_show:'danger' }[a.status] || 'light';
+          return `<span class="attendee-chip">
+            <span class="fw-semibold">${a.client_name}</span>
+            <span class="badge bg-${badge}" style="font-size:.6rem;">${a.status}</span>
+            ${a.status === 'confirmed' ? `<button onclick="doCheckin(${a.booking_id}, this, ${slotId})"
+              class="btn btn-xs btn-success" style="font-size:.6rem; padding:1px 5px; line-height:1.2;">✓</button>` : ''}
+          </span>`;
+        }).join('');
+      }
+      container.style.display = 'block';
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-chevron-up me-1"></i>Ocultar';
+    })
+    .catch(() => {
+      container.innerHTML = '<small class="text-danger">Erro ao carregar.</small>';
+      container.style.display = 'block';
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-users me-1"></i>Ver inscritos';
+    });
+}
+
+function doCheckin(bookingId, btn, slotId) {
+  btn.disabled = true;
+  fetch('/provider/checkin/' + bookingId, { method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { alert(data.error); btn.disabled = false; return; }
+      btn.parentElement.querySelector('.badge').className = 'badge bg-success';
+      btn.parentElement.querySelector('.badge').textContent = 'completed';
+      btn.remove();
+    });
+}
+</script>
+{% endblock %}

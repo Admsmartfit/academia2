@@ -1,0 +1,819 @@
+{% extends "provider/base.html" %}
+
+{% block title %}Calendário — Prestador{% endblock %}
+{% block page_title %}<i class="far fa-calendar-alt me-2 text-primary"></i>Calendário{% endblock %}
+
+{# ──────────────────────────────────────────────────────────────────────────
+   CSS
+────────────────────────────────────────────────────────────────────────── #}
+{% block extra_css %}
+{{ super() }}
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet">
+<style>
+/* ── Toolbar ── */
+.cal-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.view-toggle .btn { font-size: .8rem; }
+
+/* ── Calendar wrapper ── */
+#calendar-wrapper {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.07);
+  padding: 20px;
+}
+#calendar { min-height: 560px; }
+
+/* ── FullCalendar overrides ── */
+.fc .fc-toolbar-title { font-size: 1.1rem; font-weight: 700; color: #212529; }
+.fc .fc-button { font-size: .8rem !important; border-radius: 6px !important; }
+.fc .fc-button-primary {
+  background: var(--primary-color) !important;
+  border-color: var(--primary-color) !important;
+}
+.fc .fc-button-primary:not(.fc-button-active):hover {
+  background: #e55a2b !important;
+  border-color: #e55a2b !important;
+}
+.fc .fc-button-primary.fc-button-active {
+  background: #c04a22 !important;
+  border-color: #c04a22 !important;
+}
+.fc .fc-daygrid-day-number,
+.fc .fc-col-header-cell-cushion { color: #495057; text-decoration: none; }
+.fc .fc-day-today { background: #fff8f4 !important; }
+.fc .fc-day-today .fc-daygrid-day-number { color: var(--primary-color); font-weight: 700; }
+.fc .fc-daygrid-event {
+  border-radius: 5px !important;
+  font-size: .72rem !important;
+  padding: 1px 4px !important;
+  cursor: pointer;
+  margin-bottom: 1px !important;
+}
+.fc .fc-timegrid-event {
+  border-radius: 5px !important;
+  font-size: .72rem !important;
+  cursor: pointer;
+}
+
+/* ── Slot colour classes ── */
+.slot-gray      { opacity: .75; border: 1px dashed #adb5bd !important; }
+.slot-cancelled { text-decoration: line-through; opacity: .6; }
+
+/* ── Right panel ── */
+#day-panel {
+  width: 320px;
+  flex-shrink: 0;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.07);
+  display: none;
+  flex-direction: column;
+  max-height: calc(100vh - 110px);
+  position: sticky;
+  top: 72px;
+}
+#day-panel.open { display: flex; }
+#day-panel .panel-head {
+  padding: 16px;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+#day-panel .panel-head h6 { margin: 0; font-weight: 700; }
+#day-panel .panel-body { padding: 12px; overflow-y: auto; flex: 1; }
+.slot-card {
+  border: 1px solid #e9ecef;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: box-shadow .15s, border-color .15s;
+  position: relative;
+}
+.slot-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.1); }
+.slot-card.selected { border-color: var(--primary-color); box-shadow: 0 0 0 2px rgba(255,107,53,.2); }
+.slot-card .slot-time { font-weight: 700; font-size: .85rem; }
+.slot-card .slot-meta { font-size: .75rem; color: #6c757d; }
+.occupancy-bar {
+  height: 5px;
+  border-radius: 3px;
+  background: #e9ecef;
+  margin-top: 6px;
+  overflow: hidden;
+}
+.occupancy-bar .fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width .3s;
+}
+.fill-green  { background: #28a745; }
+.fill-yellow { background: #e0a800; }
+.fill-red    { background: #dc3545; }
+.fill-gray   { background: #adb5bd; }
+
+/* ── Attendees sub-panel ── */
+#attendees-area { display: none; }
+#attendees-area.open { display: block; }
+.attendee-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f4f4f4;
+  font-size: .82rem;
+}
+.attendee-row:last-child { border-bottom: none; }
+.attendee-avatar {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: #f0f0f0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .75rem; font-weight: 700; color: #555;
+  flex-shrink: 0;
+}
+
+/* ── Legend ── */
+.legend-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%; display: inline-block; margin-right: 4px;
+}
+.legend-dashed {
+  width: 10px; height: 10px; border-radius: 50%;
+  border: 2px dashed #adb5bd; display: inline-block; margin-right: 4px;
+}
+
+/* ── Layout side-by-side ── */
+.calendar-layout { display: flex; gap: 16px; align-items: flex-start; }
+.calendar-layout #calendar-wrapper { flex: 1; min-width: 0; }
+
+@media (max-width: 1100px) {
+  .calendar-layout { flex-direction: column; }
+  #day-panel { width: 100%; position: static; max-height: none; }
+  #day-panel.open { display: flex; }
+}
+</style>
+{% endblock %}
+
+{# ──────────────────────────────────────────────────────────────────────────
+   HTML
+────────────────────────────────────────────────────────────────────────── #}
+{% block content %}
+{# Toolbar #}
+<div class="cal-toolbar">
+  <div class="view-toggle btn-group" role="group">
+    <button type="button" class="btn btn-primary active" id="btn-month">
+      <i class="fas fa-th me-1"></i>Mês
+    </button>
+    <button type="button" class="btn btn-outline-secondary" id="btn-week">
+      <i class="fas fa-calendar-week me-1"></i>Semana
+    </button>
+  </div>
+
+  <button class="btn btn-success btn-sm ms-auto" id="btn-new-template">
+    <i class="fas fa-layer-group me-1"></i>Novo Template
+  </button>
+  <button class="btn btn-danger btn-sm" id="btn-block-day" disabled title="Selecione um dia primeiro">
+    <i class="fas fa-ban me-1"></i>Bloquear Dia
+  </button>
+</div>
+
+{# Legend #}
+<div class="d-flex flex-wrap gap-3 mb-3" style="font-size:.78rem;">
+  <span><span class="legend-dot" style="background:#28a745"></span>Disponível (&lt;50%)</span>
+  <span><span class="legend-dot" style="background:#e0a800"></span>Quase cheio (50–80%)</span>
+  <span><span class="legend-dot" style="background:#dc3545"></span>Lotado (&gt;80%)</span>
+  <span><span class="legend-dashed"></span>Sem inscritos</span>
+  <span style="text-decoration:line-through; color:#6c757d;">Cancelado</span>
+</div>
+
+{# Calendar + Right panel #}
+<div class="calendar-layout">
+  <div id="calendar-wrapper">
+    <div id="calendar"></div>
+  </div>
+  <div id="day-panel">
+    <div class="panel-head">
+      <div>
+        <h6 id="panel-date-title">—</h6>
+        <small class="text-muted" id="panel-date-sub"></small>
+      </div>
+      <button class="btn btn-sm btn-light" id="btn-close-panel">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="panel-body">
+      <div id="slots-list"></div>
+
+      {# Attendees sub-panel #}
+      <div id="attendees-area">
+        <hr class="my-2">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <small class="fw-bold text-muted" id="attendees-title">INSCRITOS</small>
+          <button class="btn btn-xs btn-outline-secondary" id="btn-close-attendees"
+                  style="font-size:.7rem; padding:2px 8px;">
+            <i class="fas fa-arrow-up me-1"></i>Fechar
+          </button>
+        </div>
+        <div id="attendees-list"></div>
+      </div>
+
+      {# Add slot button #}
+      <button class="btn btn-outline-primary btn-sm w-100 mt-2" id="btn-add-slot-panel">
+        <i class="fas fa-plus me-1"></i>Adicionar horário
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{# ──────────────────────────────────────────────────────────────────────────
+   MODALS
+────────────────────────────────────────────────────────────────────────── #}
+{% block page_js %}
+
+{# ── Modal: Criar Slot ── #}
+<div class="modal fade" id="modalCreateSlot" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:420px;">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-primary text-white">
+        <h6 class="modal-title"><i class="fas fa-plus-circle me-2"></i>Novo Horário</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="mb-3">
+          <label class="form-label fw-semibold small">Data</label>
+          <input type="date" id="cs-date" class="form-control">
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <label class="form-label fw-semibold small">Início</label>
+            <input type="time" id="cs-start" class="form-control" value="08:00">
+          </div>
+          <div class="col-6">
+            <label class="form-label fw-semibold small">Duração (min)</label>
+            <input type="number" id="cs-duration" class="form-control" value="60" min="15" step="15">
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold small">Vagas</label>
+          <input type="number" id="cs-capacity" class="form-control" value="10" min="1">
+        </div>
+        <div class="mb-1">
+          <label class="form-label fw-semibold small">Modalidade <span class="text-muted">(opcional)</span></label>
+          <select id="cs-modality" class="form-select">
+            <option value="">— Nenhuma —</option>
+            {% for m in modalities %}
+            <option value="{{ m.id }}">{{ m.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btn-confirm-create">
+          <i class="fas fa-check me-1"></i>Criar horário
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Modal: Editar Vagas ── #}
+<div class="modal fade" id="modalEditCapacity" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:360px;">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header">
+        <h6 class="modal-title"><i class="fas fa-user-edit me-2"></i>Editar Vagas</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body px-4">
+        <p class="text-muted small mb-3" id="ec-slot-label"></p>
+        <label class="form-label fw-semibold small">Número de vagas</label>
+        <div class="input-group">
+          <button class="btn btn-outline-secondary" type="button" id="ec-minus">
+            <i class="fas fa-minus"></i>
+          </button>
+          <input type="number" id="ec-capacity" class="form-control text-center fw-bold"
+                 min="1" style="max-width:80px;">
+          <button class="btn btn-outline-secondary" type="button" id="ec-plus">
+            <i class="fas fa-plus"></i>
+          </button>
+        </div>
+        <small class="text-muted" id="ec-booked-info"></small>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btn-confirm-capacity">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Modal: Confirmar Delete ── #}
+<div class="modal fade" id="modalConfirmDelete" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:380px;">
+    <div class="modal-content border-0 shadow border-danger">
+      <div class="modal-header bg-danger text-white">
+        <h6 class="modal-title"><i class="fas fa-exclamation-triangle me-2"></i>Remover Horário</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body px-4">
+        <p class="mb-1" id="del-slot-label"></p>
+        <p class="text-muted small" id="del-warning"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger" id="btn-confirm-delete">
+          <i class="fas fa-trash me-1"></i>Confirmar remoção
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Modal: Bloquear Dia ── #}
+<div class="modal fade" id="modalBlockDay" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:400px;">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-warning">
+        <h6 class="modal-title fw-bold"><i class="fas fa-ban me-2"></i>Bloquear Dia</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body px-4">
+        <p>Todos os horários de <strong id="block-date-label"></strong> serão cancelados.</p>
+        <div class="mb-1">
+          <label class="form-label fw-semibold small">Motivo</label>
+          <input type="text" id="block-reason" class="form-control"
+                 placeholder="Ex: Feriado, viagem, manutenção...">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-warning fw-bold" id="btn-confirm-block">
+          <i class="fas fa-ban me-1"></i>Bloquear
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ──────────────────────────────────────────────────────────────────────────
+   SCRIPTS
+────────────────────────────────────────────────────────────────────────── #}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+<script>
+/* ─────────────────────────────────────────
+   State
+───────────────────────────────────────── */
+let calendar;
+let selectedDate   = null;   // string 'YYYY-MM-DD'
+let activeSlotId   = null;   // slot id highlighted in panel
+let pendingDeleteId= null;
+let pendingCapId   = null;
+let pendingCapBooked = 0;
+let clickTimer     = null;
+
+/* ─────────────────────────────────────────
+   FullCalendar init
+───────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', function () {
+  const calEl = document.getElementById('calendar');
+
+  calendar = new FullCalendar.Calendar(calEl, {
+    locale: 'pt-br',
+    initialView: 'dayGridMonth',
+    headerToolbar: {
+      left:   'prev,next today',
+      center: 'title',
+      right:  ''          // view switch handled by custom buttons
+    },
+    height: 'auto',
+    eventSources: [{
+      url: '{{ url_for("provider.api_calendar_events") }}',
+      method: 'GET',
+      failure: () => showToast('Erro ao carregar eventos.', 'danger'),
+    }],
+
+    /* ── Click em data vazia → abrir painel do dia ── */
+    dateClick: function (info) {
+      selectedDate = info.dateStr;
+      openDayPanel(info.dateStr);
+    },
+
+    /* ── Click/duplo-click em evento ── */
+    eventClick: function (info) {
+      const slotId = info.event.extendedProps.slot_id;
+
+      if (clickTimer) {
+        // Duplo clique detectado
+        clearTimeout(clickTimer);
+        clickTimer = null;
+        handleDoubleClick(info.event);
+      } else {
+        clickTimer = setTimeout(function () {
+          clickTimer = null;
+          handleSingleClick(info.event);
+        }, 280);
+      }
+    },
+
+    /* ── Renderização dos eventos ── */
+    eventDidMount: function (info) {
+      const p = info.event.extendedProps;
+      if (p.status === 'cancelled') {
+        info.el.style.textDecoration = 'line-through';
+        info.el.style.opacity = '0.55';
+      }
+      // Tooltip via Bootstrap
+      info.el.setAttribute('title',
+        `${info.event.title} · ${p.available_spots} vaga(s)${p.modality_name ? ' · ' + p.modality_name : ''}`
+      );
+      new bootstrap.Tooltip(info.el, { trigger: 'hover', placement: 'top' });
+    },
+  });
+
+  calendar.render();
+
+  /* View toggle */
+  document.getElementById('btn-month').addEventListener('click', function () {
+    calendar.changeView('dayGridMonth');
+    this.classList.replace('btn-outline-secondary','btn-primary');
+    document.getElementById('btn-week').classList.replace('btn-primary','btn-outline-secondary');
+  });
+  document.getElementById('btn-week').addEventListener('click', function () {
+    calendar.changeView('timeGridWeek');
+    this.classList.replace('btn-outline-secondary','btn-primary');
+    document.getElementById('btn-month').classList.replace('btn-primary','btn-outline-secondary');
+  });
+
+  /* Close panel */
+  document.getElementById('btn-close-panel').addEventListener('click', closeDayPanel);
+  document.getElementById('btn-close-attendees').addEventListener('click', closeAttendees);
+
+  /* Add slot from panel */
+  document.getElementById('btn-add-slot-panel').addEventListener('click', function () {
+    openCreateModal(selectedDate, null);
+  });
+
+  /* Block-day button */
+  document.getElementById('btn-block-day').addEventListener('click', function () {
+    if (!selectedDate) return;
+    document.getElementById('block-date-label').textContent = formatDateBR(selectedDate);
+    document.getElementById('block-reason').value = '';
+    new bootstrap.Modal('#modalBlockDay').show();
+  });
+  document.getElementById('btn-confirm-block').addEventListener('click', confirmBlockDay);
+
+  /* New template shortcut */
+  document.getElementById('btn-new-template').addEventListener('click', function () {
+    window.location.href = '{{ url_for("provider.templates_list") }}';
+  });
+
+  /* Create slot confirm */
+  document.getElementById('btn-confirm-create').addEventListener('click', confirmCreateSlot);
+
+  /* Edit capacity */
+  document.getElementById('ec-minus').addEventListener('click', () => {
+    const el = document.getElementById('ec-capacity');
+    el.value = Math.max(pendingCapBooked, parseInt(el.value) - 1);
+  });
+  document.getElementById('ec-plus').addEventListener('click', () => {
+    const el = document.getElementById('ec-capacity');
+    el.value = parseInt(el.value) + 1;
+  });
+  document.getElementById('btn-confirm-capacity').addEventListener('click', confirmEditCapacity);
+
+  /* Delete confirm */
+  document.getElementById('btn-confirm-delete').addEventListener('click', confirmDelete);
+});
+
+/* ─────────────────────────────────────────
+   Day panel
+───────────────────────────────────────── */
+function openDayPanel(dateStr) {
+  document.getElementById('panel-date-title').textContent = formatDateBR(dateStr);
+  document.getElementById('panel-date-sub').textContent   = weekdayName(dateStr);
+  document.getElementById('btn-block-day').disabled = false;
+  document.getElementById('btn-block-day').title = 'Bloquear ' + formatDateBR(dateStr);
+  closeAttendees();
+  renderSlotsForDay(dateStr);
+  document.getElementById('day-panel').classList.add('open');
+}
+
+function closeDayPanel() {
+  document.getElementById('day-panel').classList.remove('open');
+  document.getElementById('btn-block-day').disabled = true;
+  activeSlotId = null;
+  selectedDate = null;
+}
+
+function renderSlotsForDay(dateStr) {
+  const events = calendar.getEvents()
+    .filter(e => e.startStr.startsWith(dateStr))
+    .sort((a, b) => a.start - b.start);
+
+  const container = document.getElementById('slots-list');
+  if (!events.length) {
+    container.innerHTML = `
+      <div class="text-center text-muted py-3">
+        <i class="far fa-calendar-times fa-2x mb-2 d-block opacity-50"></i>
+        <small>Sem horários neste dia.</small><br>
+        <small>Clique em "+ Adicionar horário" abaixo.</small>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = events.map(e => {
+    const p   = e.extendedProps;
+    const pct = p.occupancy_pct;
+    const fillClass = pct === 0 ? 'fill-gray' : pct < 50 ? 'fill-green' : pct <= 80 ? 'fill-yellow' : 'fill-red';
+    const cancelled = p.status === 'cancelled';
+    return `
+      <div class="slot-card ${activeSlotId === p.slot_id ? 'selected' : ''} ${cancelled ? 'opacity-50' : ''}"
+           data-slot-id="${p.slot_id}"
+           onclick="selectSlot(${p.slot_id}, this)">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="slot-time ${cancelled ? 'text-decoration-line-through text-muted' : ''}">
+              ${fmtTime(e.start)} – ${fmtTime(e.end)}
+            </div>
+            <div class="slot-meta">
+              ${p.modality_name ? `<span class="me-2"><i class="fas fa-tag me-1"></i>${p.modality_name}</span>` : ''}
+              <span>${p.booked_count}/${p.max_capacity} inscritos</span>
+            </div>
+          </div>
+          <div class="d-flex gap-1">
+            ${!cancelled ? `
+            <button class="btn btn-xs btn-outline-secondary"
+                    style="font-size:.65rem; padding:2px 6px;"
+                    onclick="openEditCapacity(event, ${p.slot_id}, ${p.max_capacity}, ${p.booked_count}, '${fmtTime(e.start)}')"
+                    title="Editar vagas">
+              <i class="fas fa-edit"></i>
+            </button>
+            <button class="btn btn-xs btn-outline-danger"
+                    style="font-size:.65rem; padding:2px 6px;"
+                    onclick="openDeleteModal(event, ${p.slot_id}, '${fmtTime(e.start)}', ${p.booked_count})"
+                    title="Remover (duplo-clique no evento também funciona)">
+              <i class="fas fa-trash"></i>
+            </button>` : `<span class="badge bg-secondary" style="font-size:.65rem;">Cancelado</span>`}
+          </div>
+        </div>
+        ${!cancelled ? `
+        <div class="occupancy-bar">
+          <div class="fill ${fillClass}" style="width:${Math.min(pct,100)}%"></div>
+        </div>` : ''}
+      </div>`;
+  }).join('');
+}
+
+function selectSlot(slotId, cardEl) {
+  activeSlotId = slotId;
+  document.querySelectorAll('.slot-card').forEach(c => c.classList.remove('selected'));
+  cardEl.classList.add('selected');
+  loadAttendees(slotId);
+}
+
+/* ─────────────────────────────────────────
+   Attendees
+───────────────────────────────────────── */
+function loadAttendees(slotId) {
+  fetch(`/provider/slot/${slotId}/attendees`)
+    .then(r => r.json())
+    .then(data => {
+      const area = document.getElementById('attendees-area');
+      const list = document.getElementById('attendees-list');
+      document.getElementById('attendees-title').textContent =
+        `INSCRITOS (${data.confirmed_count}/${data.slot.max_capacity})`;
+
+      if (!data.attendees.length) {
+        list.innerHTML = '<p class="text-muted small text-center py-2">Nenhum inscrito.</p>';
+      } else {
+        list.innerHTML = data.attendees.map(a => {
+          const badge = statusBadge(a.status);
+          return `
+            <div class="attendee-row">
+              <div class="attendee-avatar">${initials(a.client_name)}</div>
+              <div class="flex-grow-1 min-w-0">
+                <div class="fw-semibold text-truncate" style="font-size:.82rem;">${a.client_name}</div>
+                <div>${badge}</div>
+              </div>
+              ${a.status === 'confirmed' ? `
+              <button class="btn btn-xs btn-success" style="font-size:.65rem; padding:2px 8px; flex-shrink:0;"
+                      onclick="doCheckin(${a.booking_id}, this)">
+                <i class="fas fa-check"></i>
+              </button>` : ''}
+            </div>`;
+        }).join('');
+      }
+      area.classList.add('open');
+    })
+    .catch(() => showToast('Erro ao carregar inscritos.', 'danger'));
+}
+
+function closeAttendees() {
+  document.getElementById('attendees-area').classList.remove('open');
+  document.getElementById('attendees-list').innerHTML = '';
+  document.querySelectorAll('.slot-card').forEach(c => c.classList.remove('selected'));
+  activeSlotId = null;
+}
+
+/* ─────────────────────────────────────────
+   Single / double click on FC event
+───────────────────────────────────────── */
+function handleSingleClick(event) {
+  const dateStr = event.startStr.split('T')[0];
+  if (dateStr !== selectedDate) {
+    selectedDate = dateStr;
+    openDayPanel(dateStr);
+  }
+  // Highlight and show attendees
+  const card = document.querySelector(`[data-slot-id="${event.extendedProps.slot_id}"]`);
+  if (card) selectSlot(event.extendedProps.slot_id, card);
+}
+
+function handleDoubleClick(event) {
+  const p = event.extendedProps;
+  if (p.status === 'cancelled') { showToast('Este horário já está cancelado.', 'warning'); return; }
+  openDeleteModal(null, p.slot_id, fmtTime(event.start), p.booked_count);
+}
+
+/* ─────────────────────────────────────────
+   Create slot
+───────────────────────────────────────── */
+function openCreateModal(dateStr, startTime) {
+  document.getElementById('cs-date').value     = dateStr || '';
+  document.getElementById('cs-start').value    = startTime || '08:00';
+  document.getElementById('cs-duration').value = '60';
+  document.getElementById('cs-capacity').value = '10';
+  document.getElementById('cs-modality').value = '';
+  new bootstrap.Modal('#modalCreateSlot').show();
+}
+
+function confirmCreateSlot() {
+  const payload = {
+    date:         document.getElementById('cs-date').value,
+    start_time:   document.getElementById('cs-start').value,
+    duration_min: parseInt(document.getElementById('cs-duration').value),
+    max_capacity: parseInt(document.getElementById('cs-capacity').value),
+    modality_id:  document.getElementById('cs-modality').value || null,
+  };
+  if (!payload.date || !payload.start_time) {
+    showToast('Preencha data e horário.', 'warning'); return;
+  }
+  ajaxPost('/provider/calendar/slot/create', payload, function (data) {
+    bootstrap.Modal.getInstance('#modalCreateSlot')?.hide();
+    calendar.refetchEvents();
+    showToast('Horário criado com sucesso!', 'success');
+    if (selectedDate === payload.date) renderSlotsForDay(selectedDate);
+    else { selectedDate = payload.date; openDayPanel(payload.date); }
+  });
+}
+
+/* ─────────────────────────────────────────
+   Edit capacity
+───────────────────────────────────────── */
+function openEditCapacity(evt, slotId, capacity, booked, timeLabel) {
+  evt.stopPropagation();
+  pendingCapId    = slotId;
+  pendingCapBooked= booked;
+  document.getElementById('ec-slot-label').textContent = `Horário ${timeLabel} · ${booked} inscrito(s)`;
+  document.getElementById('ec-capacity').value         = capacity;
+  document.getElementById('ec-booked-info').textContent= `Mínimo: ${booked} (já inscritos)`;
+  new bootstrap.Modal('#modalEditCapacity').show();
+}
+
+function confirmEditCapacity() {
+  const cap = parseInt(document.getElementById('ec-capacity').value);
+  ajaxPost(`/provider/slot/${pendingCapId}/update-capacity`, { max_capacity: cap }, function () {
+    bootstrap.Modal.getInstance('#modalEditCapacity')?.hide();
+    calendar.refetchEvents();
+    showToast('Vagas atualizadas.', 'success');
+    if (selectedDate) renderSlotsForDay(selectedDate);
+  });
+}
+
+/* ─────────────────────────────────────────
+   Delete / cancel slot
+───────────────────────────────────────── */
+function openDeleteModal(evt, slotId, timeLabel, bookedCount) {
+  if (evt) evt.stopPropagation();
+  pendingDeleteId = slotId;
+  document.getElementById('del-slot-label').textContent =
+    `Horário ${timeLabel} será removido.`;
+  document.getElementById('del-warning').textContent = bookedCount > 0
+    ? `⚠️ ${bookedCount} aluno(s) inscrito(s) serão notificados e cancelados.`
+    : 'Nenhum aluno inscrito.';
+  new bootstrap.Modal('#modalConfirmDelete').show();
+}
+
+function confirmDelete() {
+  ajaxPost(`/provider/calendar/slot/${pendingDeleteId}/delete`, {}, function (data) {
+    bootstrap.Modal.getInstance('#modalConfirmDelete')?.hide();
+    calendar.refetchEvents();
+    showToast(data.message, data.action === 'deleted' ? 'success' : 'warning');
+    if (selectedDate) renderSlotsForDay(selectedDate);
+    closeAttendees();
+  });
+}
+
+/* ─────────────────────────────────────────
+   Block day
+───────────────────────────────────────── */
+function confirmBlockDay() {
+  const reason = document.getElementById('block-reason').value.trim() || 'Dia bloqueado pelo prestador.';
+  ajaxPost(`/provider/day/${selectedDate}/block`, { reason }, function (data) {
+    bootstrap.Modal.getInstance('#modalBlockDay')?.hide();
+    calendar.refetchEvents();
+    showToast(data.message, 'warning');
+    renderSlotsForDay(selectedDate);
+    closeAttendees();
+  });
+}
+
+/* ─────────────────────────────────────────
+   Check-in
+───────────────────────────────────────── */
+function doCheckin(bookingId, btn) {
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+  ajaxPost(`/provider/checkin/${bookingId}`, {}, function (data) {
+    showToast(`Presença de ${data.client_name} registrada.`, 'success');
+    if (activeSlotId) loadAttendees(activeSlotId);
+    calendar.refetchEvents();
+  }, function () { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check"></i>'; });
+}
+
+/* ─────────────────────────────────────────
+   Utilities
+───────────────────────────────────────── */
+function ajaxPost(url, payload, onSuccess, onError) {
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  .then(r => r.json().then(data => ({ ok: r.ok, data })))
+  .then(({ ok, data }) => {
+    if (!ok) { showToast(data.error || 'Erro desconhecido.', 'danger'); if (onError) onError(); }
+    else onSuccess(data);
+  })
+  .catch(() => { showToast('Erro de conexão.', 'danger'); if (onError) onError(); });
+}
+
+function showToast(msg, type = 'info') {
+  const colors = { success: '#198754', danger: '#dc3545', warning: '#e0a800', info: '#0d6efd' };
+  const div = document.createElement('div');
+  div.style.cssText = `
+    position:fixed; bottom:20px; right:20px; z-index:9999;
+    background:${colors[type] || colors.info}; color:#fff;
+    padding:10px 18px; border-radius:8px; font-size:.85rem;
+    box-shadow:0 4px 12px rgba(0,0,0,.2); max-width:320px;
+    animation: slideIn .25s ease;`;
+  div.textContent = msg;
+  document.body.appendChild(div);
+  setTimeout(() => div.style.opacity = '0', 3200);
+  setTimeout(() => div.remove(), 3600);
+}
+
+function fmtTime(dateObj) {
+  if (!dateObj) return '';
+  return dateObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatDateBR(dateStr) {
+  const [y, m, d] = dateStr.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+function weekdayName(dateStr) {
+  const names = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+  return names[new Date(dateStr + 'T12:00').getDay()];
+}
+
+function initials(name) {
+  return name.split(' ').slice(0,2).map(n => n[0]).join('').toUpperCase();
+}
+
+function statusBadge(status) {
+  const map = {
+    confirmed:  '<span class="badge bg-primary"  style="font-size:.62rem;">Confirmado</span>',
+    completed:  '<span class="badge bg-success"  style="font-size:.62rem;">Presente</span>',
+    cancelled:  '<span class="badge bg-secondary" style="font-size:.62rem;">Cancelado</span>',
+    no_show:    '<span class="badge bg-danger"   style="font-size:.62rem;">Faltou</span>',
+  };
+  return map[status] || `<span class="badge bg-light text-dark" style="font-size:.62rem;">${status}</span>`;
+}
+
+/* CSS animation */
+const style = document.createElement('style');
+style.textContent = '@keyframes slideIn { from { transform: translateX(40px); opacity:0 } to { transform:none; opacity:1 } }';
+document.head.appendChild(style);
+</script>
+{% endblock %}

@@ -1,0 +1,1081 @@
+{% extends "base.html" %}
+{% block title %}Agendar Aula{% endblock %}
+
+{# ──────────────────────────────────────────────────────────────────────────
+   CSS
+────────────────────────────────────────────────────────────────────────── #}
+{% block extra_css %}
+<style>
+/* ── Reset + base ── */
+*, *::before, *::after { box-sizing: border-box; }
+
+/* ── Top nav ── */
+.sch-topbar {
+  background: linear-gradient(135deg, #FF6B35 0%, #e0531d 100%);
+  color: #fff;
+  padding: 14px 16px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+}
+.sch-topbar h1 { font-size: 1.1rem; font-weight: 700; margin: 0; }
+.sch-topbar a  { color: rgba(255,255,255,.85); font-size: .82rem; text-decoration: none; }
+
+/* ── Date strip ── */
+.date-strip-wrap {
+  background: #fff;
+  border-bottom: 1px solid #e9ecef;
+  padding: 0;
+  position: sticky;
+  top: 54px;
+  z-index: 190;
+}
+.date-strip {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  gap: 6px;
+  padding: 10px 16px;
+  scrollbar-width: none;
+}
+.date-strip::-webkit-scrollbar { display: none; }
+.date-pill {
+  scroll-snap-align: start;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 60px;
+  border-radius: 12px;
+  border: 1.5px solid #e9ecef;
+  background: #fff;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all .15s;
+  color: #495057;
+}
+.date-pill:hover  { border-color: var(--primary-color); color: var(--primary-color); }
+.date-pill.active {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(255,107,53,.35);
+}
+.date-pill .dp-day  { font-size: .65rem; text-transform: uppercase; letter-spacing: .3px; }
+.date-pill .dp-num  { font-size: 1.1rem; font-weight: 700; line-height: 1.2; }
+.date-pill .dp-dot  {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--primary-color); margin-top: 2px;
+}
+.date-pill.active .dp-dot { background: rgba(255,255,255,.7); }
+
+/* ── Filter bar ── */
+.filter-bar {
+  background: #f8f9fa;
+  padding: 8px 16px;
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid #e9ecef;
+  position: sticky;
+  top: 124px;
+  z-index: 180;
+}
+.filter-bar select {
+  flex: 1;
+  font-size: .8rem;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+  background: #fff;
+  min-width: 0;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236c757d'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 24px;
+}
+.filter-bar .filter-label { font-size: .7rem; color: #6c757d; white-space: nowrap; align-self: center; }
+
+/* ── Subscription pill ── */
+.sub-pill {
+  background: #fff3cd;
+  border: 1px solid #ffe08a;
+  border-radius: 8px;
+  padding: 8px 14px;
+  margin: 10px 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .8rem;
+}
+.sub-pill .sub-credits { font-weight: 700; color: #856404; font-size: .95rem; }
+
+/* ── Day heading ── */
+.day-heading {
+  padding: 14px 16px 6px;
+  font-size: .8rem;
+  color: #6c757d;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+}
+
+/* ── Slot cards ── */
+.slots-container { padding: 0 12px 80px; }
+
+.slot-card {
+  background: #fff;
+  border-radius: 16px;
+  border: 1.5px solid #e9ecef;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.04);
+  transition: box-shadow .15s, border-color .15s;
+  position: relative;
+  overflow: hidden;
+}
+.slot-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  border-radius: 4px 0 0 4px;
+  background: var(--slot-color, #adb5bd);
+}
+.slot-card.status-available { --slot-color: #28a745; }
+.slot-card.status-few       { --slot-color: #e0a800; }
+.slot-card.status-full      { --slot-color: #dc3545; }
+.slot-card.status-booked    { --slot-color: #0d6efd; border-color: #cfe2ff; background: #f0f7ff; }
+.slot-card.status-cancelled { --slot-color: #adb5bd; opacity: .6; }
+
+.slot-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.slot-time {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #212529;
+  line-height: 1.2;
+}
+.slot-modality {
+  font-size: .78rem;
+  color: #495057;
+  margin-top: 2px;
+}
+.slot-provider {
+  font-size: .75rem;
+  color: #6c757d;
+}
+.modality-dot {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 5px;
+  flex-shrink: 0;
+}
+
+/* Occupancy bar */
+.occ-wrap { margin: 8px 0 4px; }
+.occ-bar  { height: 5px; border-radius: 3px; background: #e9ecef; overflow: hidden; }
+.occ-fill { height: 100%; border-radius: 3px; transition: width .3s; }
+.occ-label { font-size: .7rem; color: #6c757d; margin-top: 3px; }
+
+/* Action area */
+.slot-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.btn-book {
+  flex: 1;
+  min-width: 120px;
+  background: var(--primary-color);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: .85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, transform .1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.btn-book:hover  { background: #e55a2b; }
+.btn-book:active { transform: scale(.97); }
+.btn-book:disabled { background: #adb5bd; cursor: not-allowed; }
+.btn-book.booked { background: #198754; }
+
+.btn-recurring {
+  background: transparent;
+  border: 1.5px solid var(--primary-color);
+  color: var(--primary-color);
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: .75rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all .15s;
+}
+.btn-recurring:hover { background: var(--primary-color); color: #fff; }
+
+/* Alternatives */
+.alternatives-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: .78rem;
+  color: var(--primary-color);
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 4px 0;
+  margin-top: 4px;
+}
+.alternatives-box {
+  display: none;
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: #f8f9fa;
+  border-radius: 10px;
+  border: 1px solid #e9ecef;
+}
+.alternatives-box.open { display: block; }
+.alt-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid #eee;
+  font-size: .78rem;
+}
+.alt-item:last-child { border-bottom: none; }
+
+/* ── Empty state ── */
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: #6c757d;
+}
+.empty-state i { font-size: 3rem; opacity: .25; display: block; margin-bottom: 12px; }
+
+/* ── Bottom nav ── */
+.bottom-nav {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 60px;
+  background: #fff;
+  border-top: 1px solid #e9ecef;
+  display: flex;
+  z-index: 300;
+  box-shadow: 0 -2px 10px rgba(0,0,0,.06);
+}
+.bottom-nav a {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  font-size: .63rem;
+  color: #adb5bd;
+  text-decoration: none;
+  transition: color .15s;
+}
+.bottom-nav a.active, .bottom-nav a:hover { color: var(--primary-color); }
+.bottom-nav a i { font-size: 1.1rem; }
+
+/* ── Modals ── */
+.modal-bottom {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: #fff;
+  border-radius: 20px 20px 0 0;
+  padding: 20px 20px 32px;
+  transform: translateY(100%);
+  transition: transform .3s cubic-bezier(.4,0,.2,1);
+  z-index: 1050;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.modal-bottom.open { transform: translateY(0); }
+.modal-backdrop-custom {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  z-index: 1040;
+  display: none;
+}
+.modal-backdrop-custom.open { display: block; }
+.modal-handle {
+  width: 40px; height: 4px;
+  background: #dee2e6;
+  border-radius: 2px;
+  margin: 0 auto 16px;
+}
+.sub-radio-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1.5px solid #e9ecef;
+  border-radius: 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: border-color .15s;
+}
+.sub-radio-item.selected { border-color: var(--primary-color); background: #fff8f5; }
+.sub-radio-item input { accent-color: var(--primary-color); width: 18px; height: 18px; }
+
+/* ── Recurring modal steps ── */
+.step { display: none; }
+.step.active { display: block; }
+.step-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+  font-size: .75rem;
+  color: #6c757d;
+}
+.step-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #dee2e6;
+}
+.step-dot.done { background: var(--primary-color); }
+.recurrence-date-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f4f4f4;
+  font-size: .82rem;
+}
+.recurrence-date-item:last-child { border-bottom: none; }
+
+@media (min-width: 576px) {
+  .slots-container { max-width: 540px; margin: 0 auto; padding-bottom: 24px; }
+  .bottom-nav { max-width: 540px; left: 50%; transform: translateX(-50%); border-radius: 12px 12px 0 0; }
+  .modal-bottom { max-width: 480px; left: 50%; transform: translateX(-50%) translateY(100%); border-radius: 20px; bottom: 20px; }
+  .modal-bottom.open { transform: translateX(-50%) translateY(0); }
+}
+</style>
+{% endblock %}
+
+{# ──────────────────────────────────────────────────────────────────────────
+   HTML
+────────────────────────────────────────────────────────────────────────── #}
+{% block body %}
+{# ── Top bar ── #}
+<div class="sch-topbar">
+  <div>
+    <h1><i class="fas fa-calendar-alt me-2"></i>Agendar Aula</h1>
+  </div>
+  <a href="{{ url_for('student.bookings') }}">
+    <i class="fas fa-list-ul me-1"></i>Minhas Reservas
+  </a>
+</div>
+
+{# ── Date strip ── #}
+<div class="date-strip-wrap">
+  <div class="date-strip" id="date-strip">
+    {% set wd_names = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'] %}
+    {% for d in date_range %}
+      {% set is_active = (d == selected_date) %}
+      {% set has_slots  = loop.first %}  {# placeholder; JS marks dots dynamically #}
+      <a class="date-pill {{ 'active' if is_active }}"
+         data-date="{{ d.isoformat() }}"
+         href="{{ url_for('student.schedule',
+                  date=d.isoformat(),
+                  provider_id=provider_id or '',
+                  modality_id=modality_id or '') }}">
+        <span class="dp-day">{{ wd_names[d.weekday() if d.weekday() != 6 else 0] if d.weekday() == 6 else wd_names[d.weekday()+1] }}</span>
+        <span class="dp-num">{{ d.day }}</span>
+      </a>
+    {% endfor %}
+  </div>
+</div>
+
+{# ── Filter bar ── #}
+<form class="filter-bar" id="filter-form" method="get" action="{{ url_for('student.schedule') }}">
+  <input type="hidden" name="date" value="{{ selected_date.isoformat() }}">
+  <select name="provider_id" onchange="this.form.submit()">
+    <option value="">Prestador</option>
+    {% for p in providers %}
+      <option value="{{ p.id }}" {{ 'selected' if provider_id == p.id }}>{{ p.name.split()[0] }}</option>
+    {% endfor %}
+  </select>
+  <select name="modality_id" onchange="this.form.submit()">
+    <option value="">Modalidade</option>
+    {% for m in modalities %}
+      <option value="{{ m.id }}" {{ 'selected' if modality_id == m.id }}>{{ m.name }}</option>
+    {% endfor %}
+  </select>
+</form>
+
+{# ── Subscription pill ── #}
+{% if active_subs %}
+  <div class="sub-pill">
+    <i class="fas fa-credit-card text-warning"></i>
+    <div>
+      {% if active_subs | length == 1 %}
+        <span class="sub-credits">{{ active_subs[0].credits_remaining }}</span>
+        crédito(s) · {{ active_subs[0].name }}
+        <small class="text-muted">· vence {{ active_subs[0].end_date.strftime('%d/%m') }}</small>
+      {% else %}
+        <span class="sub-credits">{{ active_subs | sum(attribute='credits_remaining') }}</span>
+        créditos em {{ active_subs | length }} assinaturas
+      {% endif %}
+    </div>
+  </div>
+{% else %}
+  <div class="sub-pill" style="background:#fff3f3; border-color:#f5c6cb;">
+    <i class="fas fa-exclamation-triangle text-danger"></i>
+    <div>Sem créditos disponíveis.
+      <a href="#" style="color:#dc3545; font-weight:700;">Adquirir pacote →</a>
+    </div>
+  </div>
+{% endif %}
+
+{# ── Day heading ── #}
+<div class="day-heading">
+  {{ weekday_long[selected_date.weekday()] }},
+  {{ selected_date.strftime('%d de %B') }}
+  {% if selected_date == today %}<span class="badge bg-success ms-1" style="font-size:.65rem;">Hoje</span>{% endif %}
+</div>
+
+{# ── Slot cards ── #}
+<div class="slots-container" id="slots-container">
+  {% if slots %}
+    {% for slot in slots %}
+      {% set st = slot_status_label(slot, booked_slot_ids) %}
+      {% set pct = slot.occupancy_pct %}
+      {% if pct < 50 %}{% set fill = '#28a745' %}
+      {% elif pct <= 80 %}{% set fill = '#e0a800' %}
+      {% else %}{% set fill = '#dc3545' %}{% endif %}
+
+      <div class="slot-card status-{{ st }}"
+           id="slot-card-{{ slot.id }}"
+           data-slot-id="{{ slot.id }}"
+           data-weekday="{{ slot.date.weekday() }}"
+           data-start-time="{{ slot.start_time.strftime('%H:%M') }}"
+           data-provider-id="{{ slot.provider_id }}"
+           data-modality-id="{{ slot.modality_id or '' }}"
+           data-cost="{{ slot.modality.credits_cost if slot.modality else 1 }}">
+
+        <div class="slot-header">
+          <div>
+            <div class="slot-time">
+              {% if slot.modality %}
+                <span class="modality-dot" style="background:{{ slot.modality.color }};"></span>
+              {% endif %}
+              {{ slot.start_time.strftime('%H:%M') }}
+              <span class="text-muted fw-normal" style="font-size:.85rem;">– {{ slot.end_time.strftime('%H:%M') }}</span>
+            </div>
+            <div class="slot-modality">
+              {{ slot.modality.name if slot.modality else '—' }}
+            </div>
+            <div class="slot-provider">
+              <i class="fas fa-user-tie me-1 opacity-50"></i>{{ slot.provider.name if slot.provider else '—' }}
+            </div>
+          </div>
+
+          {# Status badge #}
+          <div class="text-end flex-shrink-0">
+            {% if st == 'booked' %}
+              <span class="badge bg-primary">Agendado ✓</span>
+            {% elif st == 'full' %}
+              <span class="badge bg-danger">Lotado</span>
+            {% elif st == 'cancelled' %}
+              <span class="badge bg-secondary">Cancelado</span>
+            {% elif st == 'few' %}
+              <span class="badge bg-warning text-dark">{{ slot.available_spots }} vaga{{ 's' if slot.available_spots != 1 }}</span>
+            {% else %}
+              <span class="badge bg-success">{{ slot.available_spots }} vagas</span>
+            {% endif %}
+          </div>
+        </div>
+
+        {# Occupancy bar #}
+        {% if st not in ('cancelled',) %}
+          <div class="occ-wrap">
+            <div class="occ-bar">
+              <div class="occ-fill" style="background:{{ fill }}; width:{{ [pct,100]|min }}%;"></div>
+            </div>
+            <div class="occ-label">{{ slot.booked_count }}/{{ slot.max_capacity }} inscritos</div>
+          </div>
+        {% endif %}
+
+        {# Actions #}
+        <div class="slot-actions">
+          {% if st == 'booked' %}
+            <button class="btn-book booked" disabled>
+              <i class="fas fa-check-circle"></i> Você está inscrito
+            </button>
+
+          {% elif st == 'full' %}
+            <button class="alternatives-toggle"
+                    onclick="loadAlternatives({{ slot.id }}, this)">
+              <i class="fas fa-search me-1"></i>Ver horários próximos ↓
+            </button>
+
+          {% elif st == 'available' or st == 'few' %}
+            <button class="btn-book"
+                    onclick="handleBook({{ slot.id }}, {{ slot.modality.credits_cost if slot.modality else 1 }}, this)"
+                    data-slot-id="{{ slot.id }}">
+              <i class="fas fa-plus"></i> Agendar
+            </button>
+            <button class="btn-recurring"
+                    onclick="openRecurringModal(
+                      {{ slot.id }},
+                      {{ slot.provider_id }},
+                      {{ slot.modality_id or 'null' }},
+                      '{{ slot.start_time.strftime('%H:%M') }}',
+                      {{ slot.date.weekday() }},
+                      '{{ slot.provider.name if slot.provider else '' }}',
+                      '{{ slot.modality.name if slot.modality else '' }}'
+                    )" title="Agendar toda semana">
+              <i class="fas fa-sync-alt"></i>
+            </button>
+          {% endif %}
+        </div>
+
+        {# Alternatives box (hidden until loaded) #}
+        <div class="alternatives-box" id="alts-{{ slot.id }}"></div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state">
+      <i class="far fa-calendar-times"></i>
+      <h5>Sem horários disponíveis</h5>
+      <p>Não há aulas programadas para este dia.<br>Tente outra data ou remova os filtros.</p>
+    </div>
+  {% endif %}
+</div>
+
+{# ── Bottom nav ── #}
+<nav class="bottom-nav">
+  <a href="{{ url_for('student.schedule') }}" class="active">
+    <i class="fas fa-calendar-alt"></i><span>Agendar</span>
+  </a>
+  <a href="{{ url_for('student.bookings') }}">
+    <i class="far fa-calendar-check"></i><span>Reservas</span>
+  </a>
+  <a href="{{ url_for('student.bookings_history') }}">
+    <i class="fas fa-history"></i><span>Histórico</span>
+  </a>
+</nav>
+
+{# ── Backdrop ── #}
+<div class="modal-backdrop-custom" id="backdrop" onclick="closeAllModals()"></div>
+
+{# ── Bottom sheet: Seletor de Assinatura ── #}
+<div class="modal-bottom" id="modal-sub-picker">
+  <div class="modal-handle"></div>
+  <h6 class="fw-bold mb-1">Qual assinatura usar?</h6>
+  <p class="text-muted small mb-3">Selecione o pacote para debitar os créditos desta aula.</p>
+  <div id="sub-picker-list">
+    {% for sub in active_subs %}
+      <label class="sub-radio-item" id="sub-item-{{ sub.id }}"
+             onclick="selectSub({{ sub.id }})">
+        <input type="radio" name="sub_picker" value="{{ sub.id }}"
+               {{ 'checked' if loop.first }}>
+        <div class="flex-grow-1">
+          <div class="fw-semibold">{{ sub.name }}</div>
+          <div class="text-muted small">
+            {{ sub.credits_remaining }} crédito(s) disponíveis
+            · vence {{ sub.end_date.strftime('%d/%m/%Y') }}
+          </div>
+        </div>
+        {% if loop.first %}<i class="fas fa-check-circle text-primary"></i>{% endif %}
+      </label>
+    {% endfor %}
+  </div>
+  <div class="d-flex gap-2 mt-3">
+    <button class="btn btn-secondary flex-fill" onclick="closeAllModals()">Cancelar</button>
+    <button class="btn btn-primary flex-fill fw-bold" id="btn-confirm-sub" onclick="confirmSubAndBook()">
+      <i class="fas fa-check me-1"></i>Confirmar
+    </button>
+  </div>
+</div>
+
+{# ── Bottom sheet: Agendamento Recorrente ── #}
+<div class="modal-bottom" id="modal-recurring">
+  <div class="modal-handle"></div>
+
+  {# Step indicator #}
+  <div class="step-indicator">
+    <div class="step-dot" id="sdot-1"></div>
+    <div style="flex:1; height:1px; background:#dee2e6;"></div>
+    <div class="step-dot" id="sdot-2"></div>
+    <span id="step-label" class="ms-2">Configurar</span>
+  </div>
+
+  {# Step 1: Configurar #}
+  <div class="step active" id="rec-step-1">
+    <h6 class="fw-bold mb-1" id="rec-title">Agendar toda semana</h6>
+    <p class="text-muted small mb-3" id="rec-subtitle"></p>
+
+    <div class="mb-3">
+      <label class="form-label fw-semibold small">Frequência</label>
+      <div class="d-flex gap-2">
+        <label class="flex-fill">
+          <input type="radio" name="rec_freq" value="weekly" checked class="visually-hidden">
+          <div class="sub-radio-item" id="freq-weekly-lbl" onclick="selectFreq('weekly')">
+            <div><div class="fw-semibold">Toda semana</div>
+              <div class="text-muted small">Sempre no mesmo dia e hora</div></div>
+            <i class="fas fa-check-circle text-primary" id="freq-weekly-icon"></i>
+          </div>
+        </label>
+        <label class="flex-fill">
+          <input type="radio" name="rec_freq" value="biweekly" class="visually-hidden">
+          <div class="sub-radio-item" id="freq-biweekly-lbl" onclick="selectFreq('biweekly')">
+            <div><div class="fw-semibold">A cada 2 semanas</div>
+              <div class="text-muted small">Quinzenal</div></div>
+            <i class="fas fa-check-circle text-muted" id="freq-biweekly-icon"></i>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label fw-semibold small">Até quando?</label>
+      <div class="d-flex gap-2 mb-2">
+        <label class="flex-fill">
+          <input type="radio" name="rec_until" value="sub" checked class="visually-hidden">
+          <div class="sub-radio-item" id="until-sub-lbl" onclick="selectUntil('sub')">
+            <div><div class="fw-semibold">Fim da assinatura</div></div>
+            <i class="fas fa-check-circle text-primary" id="until-sub-icon"></i>
+          </div>
+        </label>
+        <label class="flex-fill">
+          <input type="radio" name="rec_until" value="date" class="visually-hidden">
+          <div class="sub-radio-item" id="until-date-lbl" onclick="selectUntil('date')">
+            <div><div class="fw-semibold">Data específica</div></div>
+            <i class="fas fa-check-circle text-muted" id="until-date-icon"></i>
+          </div>
+        </label>
+      </div>
+      <div id="custom-until-wrap" style="display:none;">
+        <input type="date" id="rec-until-date" class="form-control form-control-sm">
+      </div>
+    </div>
+
+    {% if active_subs | length > 1 %}
+    <div class="mb-3">
+      <label class="form-label fw-semibold small">Assinatura</label>
+      <select id="rec-sub-id" class="form-select form-select-sm">
+        {% for sub in active_subs %}
+          <option value="{{ sub.id }}"
+                  data-end="{{ sub.end_date.isoformat() }}">
+            {{ sub.name }} · {{ sub.credits_remaining }} créditos
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    {% else %}
+    <input type="hidden" id="rec-sub-id" value="{{ active_subs[0].id if active_subs else '' }}">
+    {% endif %}
+
+    <button class="btn btn-primary w-100 fw-bold" onclick="previewRecurring()">
+      <i class="fas fa-search me-1"></i>Ver disponibilidade
+    </button>
+  </div>
+
+  {# Step 2: Preview #}
+  <div class="step" id="rec-step-2">
+    <h6 class="fw-bold mb-1">Disponibilidade das aulas</h6>
+    <p class="text-muted small mb-3" id="rec-preview-summary"></p>
+
+    <div id="rec-preview-list"
+         style="max-height:220px; overflow-y:auto; border:1px solid #e9ecef; border-radius:10px; padding:4px 10px; margin-bottom:12px;">
+    </div>
+
+    <div class="d-flex gap-2">
+      <button class="btn btn-outline-secondary flex-fill" onclick="goRecStep(1)">
+        <i class="fas fa-arrow-left me-1"></i>Voltar
+      </button>
+      <button class="btn btn-success flex-fill fw-bold" id="btn-confirm-recurring" onclick="confirmRecurring()">
+        <i class="fas fa-check me-1"></i>Confirmar
+      </button>
+    </div>
+  </div>
+</div>
+
+{# ──────────────────────────────────────────────────────────────────────────
+   DATA passada pelo servidor para o JS
+────────────────────────────────────────────────────────────────────────── #}
+<script>
+const APP = {
+  subs:         {{ active_subs | map(attribute='id') | list | tojson }},
+  subEndDates:  {
+    {% for s in active_subs %}"{{ s.id }}": "{{ s.end_date.isoformat() }}"{{ ',' if not loop.last }}{% endfor %}
+  },
+  subCredits:   {
+    {% for s in active_subs %}"{{ s.id }}": {{ s.credits_remaining }}{{ ',' if not loop.last }}{% endfor %}
+  },
+  today:        "{{ today.isoformat() }}",
+  bookUrl:      "/student/book/",
+  altUrl:       "/student/book/",
+  previewUrl:   "/student/recurring/preview",
+  createUrl:    "/student/recurring/create",
+};
+</script>
+{% endblock %}
+
+{# ──────────────────────────────────────────────────────────────────────────
+   JAVASCRIPT
+────────────────────────────────────────────────────────────────────────── #}
+{% block extra_js %}
+<script>
+/* ─────────────────────────────────────────────────────
+   State
+───────────────────────────────────────────────────── */
+let pendingSlotId   = null;
+let pendingCost     = 0;
+let selectedSubId   = APP.subs[0] ?? null;
+let recState        = {};   // recurring booking params
+
+/* ─────────────────────────────────────────────────────
+   BOOKING FLOW
+───────────────────────────────────────────────────── */
+function handleBook(slotId, cost, btn) {
+  pendingSlotId = slotId;
+  pendingCost   = cost;
+
+  if (APP.subs.length === 0) {
+    showToast('Você não possui créditos. Adquira um pacote.', 'warning'); return;
+  }
+  if (APP.subs.length === 1) {
+    // 1 assinatura → booking imediato (1 clique)
+    selectedSubId = APP.subs[0];
+    doBook(btn);
+  } else {
+    // Múltiplas assinaturas → mostrar seletor (2 cliques)
+    openModal('modal-sub-picker');
+  }
+}
+
+function doBook(btn) {
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Aguarde...';
+  }
+  ajaxPost(APP.bookUrl + pendingSlotId, { subscription_id: selectedSubId }, function (data) {
+    const card = document.getElementById('slot-card-' + pendingSlotId);
+    if (card) {
+      card.className = card.className.replace(/status-\w+/, 'status-booked');
+      const actArea = card.querySelector('.slot-actions');
+      if (actArea) actArea.innerHTML = `
+        <button class="btn-book booked" disabled>
+          <i class="fas fa-check-circle"></i> Você está inscrito
+        </button>`;
+      // Update occupancy
+      const occ = card.querySelector('.occ-label');
+      if (occ) {
+        const s = data.slot;
+        occ.textContent = s.booked_count + '/' + s.max_capacity + ' inscritos';
+        const fill = card.querySelector('.occ-fill');
+        if (fill) fill.style.width = Math.min(s.occupancy_pct, 100) + '%';
+      }
+    }
+    closeAllModals();
+    showToast('Aula agendada! ✓', 'success');
+  }, function () {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-plus"></i> Agendar';
+    }
+  });
+}
+
+function selectSub(subId) {
+  selectedSubId = subId;
+  document.querySelectorAll('.sub-radio-item').forEach(el => el.classList.remove('selected'));
+  document.getElementById('sub-item-' + subId)?.classList.add('selected');
+  document.querySelectorAll('#sub-picker-list input[type=radio]').forEach(r => {
+    r.checked = parseInt(r.value) === subId;
+  });
+}
+
+function confirmSubAndBook() {
+  const btn = document.getElementById('btn-confirm-sub');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>';
+  doBook(null);
+  setTimeout(() => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check me-1"></i>Confirmar'; }, 3000);
+}
+
+/* ─────────────────────────────────────────────────────
+   ALTERNATIVES
+───────────────────────────────────────────────────── */
+function loadAlternatives(slotId, btn) {
+  const box = document.getElementById('alts-' + slotId);
+  if (box.classList.contains('open')) {
+    box.classList.remove('open'); btn.innerHTML = '<i class="fas fa-search me-1"></i>Ver horários próximos ↓'; return;
+  }
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Buscando...';
+  btn.disabled  = true;
+  fetch(APP.altUrl + slotId + '/alternatives')
+    .then(r => r.json())
+    .then(data => {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-chevron-up me-1"></i>Ocultar';
+      if (!data.alternatives.length) {
+        box.innerHTML = '<p class="text-muted small text-center py-2">Nenhum horário próximo disponível.</p>';
+      } else {
+        box.innerHTML = data.alternatives.map(a => {
+          const dateLabel = a.date === APP.today ? 'Hoje' : formatDateBR(a.date);
+          return `<div class="alt-item">
+            <span><i class="fas fa-clock text-primary me-1"></i><strong>${a.start_time}</strong> · ${dateLabel}</span>
+            <span class="d-flex align-items-center gap-2">
+              <span class="text-muted">${a.available_spots} vaga(s)</span>
+              <button class="btn btn-xs btn-primary"
+                      style="font-size:.7rem; padding:3px 10px;"
+                      onclick="handleBook(${a.id}, ${a.credits_cost}, this)">Agendar</button>
+            </span>
+          </div>`;
+        }).join('');
+      }
+      box.classList.add('open');
+    })
+    .catch(() => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-search me-1"></i>Ver horários próximos ↓'; showToast('Erro ao buscar alternativas.', 'danger'); });
+}
+
+/* ─────────────────────────────────────────────────────
+   RECURRING MODAL
+───────────────────────────────────────────────────── */
+function openRecurringModal(slotId, providerId, modalityId, startTime, weekday, providerName, modalityName) {
+  recState = { slotId, providerId, modalityId, startTime, weekday, providerName, modalityName };
+
+  const dayNames = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'];
+  document.getElementById('rec-title').textContent   = `Agendar toda ${dayNames[weekday]}`;
+  document.getElementById('rec-subtitle').textContent = `${startTime} com ${providerName}${modalityName ? ' · ' + modalityName : ''}`;
+
+  // Reset to step 1
+  goRecStep(1);
+  // Reset frequency + until
+  selectFreq('weekly');
+  selectUntil('sub');
+  openModal('modal-recurring');
+}
+
+function selectFreq(val) {
+  recState.frequency = val;
+  ['weekly','biweekly'].forEach(f => {
+    const lbl  = document.getElementById('freq-' + f + '-lbl');
+    const icon = document.getElementById('freq-' + f + '-icon');
+    if (f === val) { lbl?.classList.add('selected'); icon.className = 'fas fa-check-circle text-primary'; }
+    else           { lbl?.classList.remove('selected'); icon.className = 'fas fa-check-circle text-muted'; }
+  });
+}
+
+function selectUntil(val) {
+  recState.untilType = val;
+  ['sub','date'].forEach(u => {
+    const lbl  = document.getElementById('until-' + u + '-lbl');
+    const icon = document.getElementById('until-' + u + '-icon');
+    if (u === val) { lbl?.classList.add('selected'); icon.className = 'fas fa-check-circle text-primary'; }
+    else           { lbl?.classList.remove('selected'); icon.className = 'fas fa-check-circle text-muted'; }
+  });
+  document.getElementById('custom-until-wrap').style.display = val === 'date' ? 'block' : 'none';
+}
+
+function goRecStep(n) {
+  document.getElementById('rec-step-1').classList.toggle('active', n === 1);
+  document.getElementById('rec-step-2').classList.toggle('active', n === 2);
+  document.getElementById('sdot-1').classList.toggle('done', n >= 1);
+  document.getElementById('sdot-2').classList.toggle('done', n >= 2);
+  document.getElementById('step-label').textContent = n === 1 ? 'Configurar' : 'Confirmar';
+}
+
+async function previewRecurring() {
+  const subEl  = document.getElementById('rec-sub-id');
+  const subId  = subEl ? (parseInt(subEl.value) || null) : null;
+  recState.subId = subId;
+
+  let validUntil = null;
+  if (recState.untilType === 'date') {
+    validUntil = document.getElementById('rec-until-date').value || null;
+  } else if (subId && APP.subEndDates[subId]) {
+    validUntil = APP.subEndDates[subId];
+  }
+  recState.validUntil = validUntil;
+
+  const payload = {
+    provider_id: recState.providerId,
+    start_time:  recState.startTime,
+    weekday:     recState.weekday,
+    frequency:   recState.frequency || 'weekly',
+    valid_from:  APP.today,
+    valid_until: validUntil,
+  };
+
+  const btn = document.querySelector('#rec-step-1 button:last-child');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Verificando...';
+
+  try {
+    const r    = await fetch(APP.previewUrl, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    const data = await r.json();
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-search me-1"></i>Ver disponibilidade';
+
+    if (!r.ok) { showToast(data.error || 'Erro.', 'danger'); return; }
+
+    // Render preview
+    const list = document.getElementById('rec-preview-list');
+    let html   = '';
+    data.available.forEach(d => {
+      html += `<div class="recurrence-date-item">
+        <i class="fas fa-check-circle text-success"></i>
+        <span class="fw-semibold">${formatDateBR(d)}</span>
+        <span class="text-success ms-auto" style="font-size:.72rem;">Disponível</span>
+      </div>`;
+    });
+    data.conflicts.forEach(c => {
+      html += `<div class="recurrence-date-item">
+        <i class="fas fa-times-circle text-danger"></i>
+        <span class="text-muted" style="text-decoration:line-through;">${formatDateBR(c.date)}</span>
+        <span class="text-danger ms-auto" style="font-size:.72rem;">${c.reason}</span>
+      </div>`;
+    });
+    list.innerHTML = html || '<p class="text-muted small text-center">Nenhuma ocorrência encontrada.</p>';
+
+    document.getElementById('rec-preview-summary').textContent =
+      `${data.total_available} aula(s) disponível(is)` +
+      (data.total_conflicts ? ` · ${data.total_conflicts} conflito(s)` : '');
+
+    if (data.total_available === 0) {
+      document.getElementById('btn-confirm-recurring').disabled = true;
+    }
+    recState.previewData = data;
+    goRecStep(2);
+  } catch(e) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-search me-1"></i>Ver disponibilidade';
+    showToast('Erro de conexão.', 'danger');
+  }
+}
+
+async function confirmRecurring() {
+  const btn = document.getElementById('btn-confirm-recurring');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>';
+
+  const payload = {
+    provider_id:     recState.providerId,
+    modality_id:     recState.modalityId || null,
+    start_time:      recState.startTime,
+    weekday:         recState.weekday,
+    frequency:       recState.frequency || 'weekly',
+    valid_from:      APP.today,
+    valid_until:     recState.validUntil || null,
+    subscription_id: recState.subId || null,
+  };
+
+  try {
+    const r    = await fetch(APP.createUrl, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    const data = await r.json();
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check me-1"></i>Confirmar';
+
+    if (!r.ok) { showToast(data.error || 'Erro.', 'danger'); return; }
+
+    closeAllModals();
+    showToast(data.message || `${data.created} aula(s) agendada(s)!`, 'success');
+    // Refresh cards for current day
+    setTimeout(() => location.reload(), 1200);
+  } catch(e) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check me-1"></i>Confirmar';
+    showToast('Erro de conexão.', 'danger');
+  }
+}
+
+/* ─────────────────────────────────────────────────────
+   MODAL UTILS
+───────────────────────────────────────────────────── */
+function openModal(id) {
+  document.getElementById(id)?.classList.add('open');
+  document.getElementById('backdrop')?.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeAllModals() {
+  document.querySelectorAll('.modal-bottom').forEach(m => m.classList.remove('open'));
+  document.getElementById('backdrop')?.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+/* ─────────────────────────────────────────────────────
+   GENERIC HELPERS
+───────────────────────────────────────────────────── */
+function ajaxPost(url, payload, onSuccess, onError) {
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  .then(r => r.json().then(d => ({ ok: r.ok, d })))
+  .then(({ ok, d }) => {
+    if (!ok) { showToast(d.error || 'Erro.', 'danger'); if (onError) onError(); }
+    else onSuccess(d);
+  })
+  .catch(() => { showToast('Erro de conexão.', 'danger'); if (onError) onError(); });
+}
+
+function showToast(msg, type = 'info') {
+  const palette = { success:'#198754', danger:'#dc3545', warning:'#e0a800', info:'#0d6efd' };
+  const t = document.createElement('div');
+  t.style.cssText = `position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:9999;
+    background:${palette[type]||palette.info};color:#fff;
+    padding:10px 20px;border-radius:24px;font-size:.85rem;font-weight:600;
+    box-shadow:0 4px 16px rgba(0,0,0,.2);white-space:nowrap;
+    animation:fadeIn .2s ease;`;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .3s'; }, 2800);
+  setTimeout(() => t.remove(), 3200);
+}
+
+function formatDateBR(iso) {
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}`;
+}
+
+/* CSS animation */
+const s = document.createElement('style');
+s.textContent = '@keyframes fadeIn{from{opacity:0;transform:translateX(-50%) translateY(-6px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}';
+document.head.appendChild(s);
+
+/* ─── Auto-scroll active date into view ─── */
+document.addEventListener('DOMContentLoaded', () => {
+  const active = document.querySelector('.date-pill.active');
+  active?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+
+  // Initialize first sub as selected
+  if (APP.subs.length > 0) selectSub(APP.subs[0]);
+
+  // Initialize recurring defaults
+  selectFreq('weekly');
+  selectUntil('sub');
+});
+</script>
+{% endblock %}

@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Histórico de Aulas{% endblock %}
+
+{% block extra_css %}
+<style>
+.bk-topbar {
+  background: linear-gradient(135deg, #FF6B35 0%, #e0531d 100%);
+  color: #fff; padding: 14px 16px 10px;
+  display: flex; align-items: center; gap: 12px;
+  position: sticky; top: 0; z-index: 200;
+}
+.bk-topbar h1 { font-size: 1.1rem; font-weight: 700; margin: 0; flex: 1; }
+.history-list { padding: 10px 12px 80px; max-width: 540px; margin: 0 auto; }
+.hist-card {
+  display: flex; align-items: center; gap: 12px;
+  background: #fff; border-radius: 14px;
+  border: 1px solid #e9ecef; padding: 12px 14px;
+  margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.04);
+}
+.hist-date {
+  display: flex; flex-direction: column; align-items: center;
+  min-width: 38px; text-align: center;
+}
+.hist-date .m  { font-size: .58rem; text-transform: uppercase; color: #adb5bd; }
+.hist-date .d  { font-size: 1.15rem; font-weight: 800; color: #495057; line-height: 1; }
+.hist-info     { flex: 1; min-width: 0; }
+.hist-title    { font-weight: 600; font-size: .88rem; }
+.hist-meta     { font-size: .72rem; color: #6c757d; margin-top: 2px; }
+.status-badge  { font-size: .65rem; font-weight: 700; padding: 3px 8px; border-radius: 8px; flex-shrink: 0; }
+.bottom-nav {
+  position: fixed; bottom: 0; left: 0; right: 0; height: 60px;
+  background: #fff; border-top: 1px solid #e9ecef;
+  display: flex; z-index: 300; box-shadow: 0 -2px 10px rgba(0,0,0,.06);
+}
+.bottom-nav a {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 3px;
+  font-size: .63rem; color: #adb5bd; text-decoration: none;
+}
+.bottom-nav a.active, .bottom-nav a:hover { color: var(--primary-color); }
+.bottom-nav a i { font-size: 1.1rem; }
+@media (min-width: 576px) {
+  .bottom-nav { max-width: 540px; left: 50%; transform: translateX(-50%); border-radius: 12px 12px 0 0; }
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="bk-topbar">
+  <a href="{{ url_for('student.bookings') }}" style="color:#fff;"><i class="fas fa-arrow-left"></i></a>
+  <h1><i class="fas fa-history me-2"></i>Histórico</h1>
+</div>
+
+<div class="history-list">
+  {% if past %}
+    {% set status_map = {
+      'completed': ('bg-success', 'Presente'),
+      'no_show':   ('bg-danger',  'Faltou'),
+      'cancelled': ('bg-secondary', 'Cancelado'),
+    } %}
+    {% for b in past %}
+      {% set slot = b.slot %}
+      {% set s_cls, s_label = status_map.get(b.status.value, ('bg-light text-dark', b.status.value)) %}
+      <div class="hist-card">
+        <div class="hist-date">
+          <span class="m">{{ slot.date.strftime('%b') | upper }}</span>
+          <span class="d">{{ slot.date.day }}</span>
+        </div>
+        <div class="hist-info">
+          <div class="hist-title">
+            {{ slot.start_time.strftime('%H:%M') }}
+            {% if slot.modality %} · {{ slot.modality.name }}{% endif %}
+          </div>
+          <div class="hist-meta">
+            {{ weekday_short[slot.date.weekday()] }}, {{ slot.date.strftime('%d/%m/%Y') }}
+            {% if slot.provider %} · {{ slot.provider.name.split()[0] }}{% endif %}
+            {% if b.xp_awarded %} · <i class="fas fa-star text-warning"></i> +{{ b.xp_awarded }} XP{% endif %}
+          </div>
+        </div>
+        <span class="status-badge {{ s_cls }}">{{ s_label }}</span>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="fas fa-history fa-3x opacity-25 d-block mb-3"></i>
+      <h5>Nenhuma aula no histórico</h5>
+      <p>Suas aulas realizadas aparecerão aqui.</p>
+    </div>
+  {% endif %}
+</div>
+
+<nav class="bottom-nav">
+  <a href="{{ url_for('student.schedule') }}"><i class="fas fa-calendar-alt"></i><span>Agendar</span></a>
+  <a href="{{ url_for('student.bookings') }}"><i class="far fa-calendar-check"></i><span>Reservas</span></a>
+  <a href="{{ url_for('student.bookings_history') }}" class="active"><i class="fas fa-history"></i><span>Histórico</span></a>
+</nav>
+{% endblock %}
