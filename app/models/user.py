@@ -5,8 +5,6 @@ from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 import enum
-import re
-import uuid
 
 
 class UserRole(enum.Enum):
@@ -54,6 +52,10 @@ class User(UserMixin, db.Model):
     level = db.Column(db.Integer, default=1)
     xp_available = db.Column(db.Integer, default=0)
     credits_balance = db.Column(db.Integer, default=0)
+
+    # Módulo de Vendas: origem do lead
+    # Valores: 'quiz_organic' | 'referral' | 'admin_manual' | 'qr_code' | 'landing_page'
+    lead_source = db.Column(db.String(50), nullable=True)
 
     # Status e Datas
     is_active = db.Column(db.Boolean, default=True)

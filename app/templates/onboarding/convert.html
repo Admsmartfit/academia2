@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block title %}Sua Matrícula{% endblock %}
+
+{% block extra_css %}
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+body { background: #f8f9fa; }
+.conv-wrap { max-width: 480px; margin: 0 auto; padding-bottom: 60px; }
+
+.conv-header {
+  background: linear-gradient(135deg, #FF6B35 0%, #e0531d 100%);
+  color: #fff;
+  padding: 24px 20px 28px;
+  text-align: center;
+}
+.conv-header h1 { font-size: 1.2rem; font-weight: 800; margin: 0 0 4px; }
+.conv-header p  { font-size: .82rem; opacity: .9; margin: 0; }
+
+.conv-body { padding: 20px; }
+
+.conv-recap {
+  background: #fff;
+  border-radius: 14px;
+  border: 1.5px solid #e9ecef;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+  font-size: .82rem;
+  color: #495057;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.conv-recap-icon {
+  width: 40px; height: 40px;
+  background: #fff3ec;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--primary-color);
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.plans-label {
+  font-size: .72rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .8px; color: #6c757d; margin-bottom: 12px;
+}
+
+.plan-card {
+  background: #fff;
+  border: 2px solid #e9ecef;
+  border-radius: 16px;
+  padding: 18px;
+  margin-bottom: 12px;
+  position: relative;
+  transition: border-color .15s;
+  cursor: pointer;
+}
+.plan-card:hover { border-color: var(--primary-color); }
+.plan-card.highlight { border-color: var(--primary-color); }
+.plan-highlight-badge {
+  position: absolute;
+  top: -10px; right: 14px;
+  background: var(--primary-color);
+  color: #fff;
+  border-radius: 10px;
+  padding: 3px 10px;
+  font-size: .62rem;
+  font-weight: 700;
+}
+
+.plan-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.plan-icon {
+  width: 40px; height: 40px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+.plan-title { font-size: .95rem; font-weight: 800; }
+.plan-credits {
+  margin-left: auto;
+  font-size: .75rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  background: #fff3ec;
+  border-radius: 10px;
+  padding: 4px 10px;
+  flex-shrink: 0;
+}
+.plan-desc { font-size: .8rem; color: #6c757d; line-height: 1.4; }
+
+.btn-select-plan {
+  width: 100%;
+  padding: 11px;
+  border-radius: 12px;
+  border: none;
+  font-size: .85rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 10px;
+  text-decoration: none;
+  display: block;
+  text-align: center;
+  transition: opacity .15s;
+}
+.btn-select-plan.primary  { background: var(--primary-color); color: #fff; }
+.btn-select-plan.outline  { background: none; border: 2px solid #dee2e6; color: #495057; }
+.btn-select-plan:hover { opacity: .85; }
+
+.conv-consultant {
+  background: #fff;
+  border-radius: 14px;
+  border: 1.5px solid #dee2e6;
+  padding: 14px 16px;
+  margin-top: 20px;
+  text-align: center;
+  font-size: .82rem;
+  color: #6c757d;
+}
+.conv-consultant a {
+  color: var(--primary-color);
+  font-weight: 600;
+  text-decoration: none;
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="conv-wrap">
+
+  <div class="conv-header">
+    <h1>🎉 Parabéns pela sua aula!</h1>
+    <p>
+      {% if modality %}Você fez sua aula de <strong>{{ modality.name }}</strong>{% if slot and slot.provider %} com <strong>{{ slot.provider.name.split()[0] }}</strong>{% endif %}!{% else %}Você completou sua aula demonstrativa!{% endif %}
+      Agora é hora de continuar sua jornada.
+    </p>
+  </div>
+
+  <div class="conv-body">
+
+    {% if modality or slot %}
+    <div class="conv-recap">
+      <div class="conv-recap-icon"><i class="fas fa-star"></i></div>
+      <div>
+        Com base no seu perfil e na experiência que você teve, preparamos as melhores opções de plano para você.
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="plans-label">Escolha seu plano</div>
+
+    {% for plan in plans %}
+    <div class="plan-card {{ 'highlight' if plan.highlight }}">
+      {% if plan.highlight %}<div class="plan-highlight-badge">⭐ Recomendado</div>{% endif %}
+      <div class="plan-header">
+        <div class="plan-icon" style="background:{{ plan.color }}22;color:{{ plan.color }}">
+          <i class="{{ plan.icon }}"></i>
+        </div>
+        <div class="plan-title">{{ plan.title }}</div>
+        <div class="plan-credits">{{ plan.credits }} créditos</div>
+      </div>
+      <div class="plan-desc">{{ plan.description }}</div>
+      <form action="{{ url_for('onboarding.convert_select') }}" method="POST">
+        <input type="hidden" name="plan" value="{{ plan.key }}">
+        <button type="submit" class="btn-select-plan {{ 'primary' if plan.highlight else 'outline' }}">
+          <i class="fas fa-arrow-right me-1"></i>Escolher este plano
+        </button>
+      </form>
+    </div>
+    {% endfor %}
+
+    <div class="conv-consultant">
+      Não tem certeza? <a href="{{ url_for('student.schedule') }}">Fale com um consultor</a> e vamos ajudar você a escolher o melhor plano para o seu objetivo.
+    </div>
+
+  </div>
+</div>
+{% endblock %}

@@ -630,6 +630,12 @@ def checkin(booking_id: int):
 
     booking.checked_in_at = datetime.utcnow()
     booking.status = BookingStatus.COMPLETED
+
+    # Trigger pós-demo
+    if booking.booking_type == "demo":
+        from app.services.onboarding import on_demo_completed
+        on_demo_completed(booking)
+
     db.session.commit()
 
     return jsonify({

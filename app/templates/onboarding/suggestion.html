@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+{% block title %}Seu Treino Ideal{% endblock %}
+
+{% block extra_css %}
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+body { background: #f8f9fa; }
+.sug-wrap { max-width: 480px; margin: 0 auto; padding-bottom: 40px; }
+
+.sug-header {
+  background: linear-gradient(135deg, #FF6B35 0%, #e0531d 100%);
+  color: #fff;
+  padding: 24px 20px 28px;
+  text-align: center;
+}
+.sug-header .check-icon {
+  width: 56px; height: 56px;
+  background: rgba(255,255,255,.2);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem;
+  margin: 0 auto 12px;
+}
+.sug-header h1 { font-size: 1.3rem; font-weight: 800; margin: 0 0 4px; }
+.sug-header p  { font-size: .85rem; opacity: .9; margin: 0; }
+
+.sug-body { padding: 20px; }
+
+.sug-section-label {
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  color: #6c757d;
+  margin: 0 0 12px;
+}
+
+/* Modality card */
+.mod-card {
+  background: #fff;
+  border-radius: 18px;
+  border: 2px solid #e9ecef;
+  overflow: hidden;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.05);
+}
+.mod-card-header {
+  padding: 18px 18px 14px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.mod-card-icon {
+  width: 48px; height: 48px;
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+.mod-card-icon.ezbody       { background: #f3e8ff; }
+.mod-card-icon.musculacao   { background: #fff3ec; }
+.mod-card-icon.default      { background: #e8f4fd; }
+.mod-card-title { font-size: 1rem; font-weight: 800; margin: 0 0 2px; }
+.mod-card-sub   { font-size: .75rem; color: #6c757d; }
+.badge-free {
+  margin-left: auto;
+  background: #d1fae5;
+  color: #065f46;
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-size: .65rem;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.mod-benefits {
+  padding: 0 18px 8px;
+  list-style: none;
+  margin: 0;
+}
+.mod-benefits li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: .8rem;
+  color: #495057;
+  padding: 4px 0;
+}
+.mod-benefits li i { color: #198754; margin-top: 2px; flex-shrink: 0; }
+
+.mod-card-footer {
+  padding: 12px 18px 16px;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.btn-book-demo {
+  flex: 1;
+  background: var(--primary-color);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 12px;
+  font-size: .88rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: center;
+  display: block;
+  transition: background .15s;
+}
+.btn-book-demo:hover { background: #e0531d; color: #fff; }
+.btn-book-demo.parq-first { background: #6f42c1; }
+.btn-book-demo.parq-first:hover { background: #5a32a3; }
+
+.alert-parq {
+  background: #fff8e1;
+  border: 1.5px solid #ffc107;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: .8rem;
+  color: #856404;
+  margin-bottom: 16px;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.schedule-card {
+  background: #fff;
+  border-radius: 14px;
+  border: 1.5px solid #e9ecef;
+  padding: 14px 16px;
+  margin-top: 20px;
+}
+.schedule-card h6 { font-size: .8rem; font-weight: 700; margin-bottom: 10px; color: #495057; }
+.schedule-table { width: 100%; font-size: .75rem; border-collapse: collapse; }
+.schedule-table td { padding: 5px 6px; border-bottom: 1px solid #f0f0f0; }
+.schedule-table td:first-child { font-weight: 600; color: #495057; width: 80px; }
+.schedule-table tr:last-child td { border-bottom: none; }
+
+.btn-redo-quiz {
+  background: none;
+  border: none;
+  color: #6c757d;
+  font-size: .78rem;
+  cursor: pointer;
+  text-decoration: underline;
+  display: block;
+  text-align: center;
+  margin-top: 20px;
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="sug-wrap">
+
+  <div class="sug-header">
+    <div class="check-icon"><i class="fas fa-star"></i></div>
+    <h1>Encontramos seu treino ideal!</h1>
+    <p>Com base no seu perfil, estas modalidades são perfeitas para você</p>
+  </div>
+
+  <div class="sug-body">
+
+    {% if needs_parq %}
+    <div class="alert-parq">
+      <i class="fas fa-shield-alt" style="margin-top:2px;flex-shrink:0"></i>
+      <div>
+        <strong>Triagem de saúde necessária</strong><br>
+        Antes de agendar o EZBody, responda 6 perguntas rápidas sobre sua saúde. É rápido e garante sua segurança.
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="sug-section-label">Modalidades recomendadas para você</div>
+
+    {% for item in modalities %}
+      {% set slug = item.slug %}
+      {% set m    = item.modality %}
+      {% set is_ezb = slug == 'ezbody' %}
+
+      <div class="mod-card">
+        <div class="mod-card-header">
+          <div class="mod-card-icon {{ 'ezbody' if is_ezb else 'musculacao' if slug == 'musculacao' else 'default' }}">
+            {{ '⚡' if is_ezb else '🏋️' }}
+          </div>
+          <div>
+            <div class="mod-card-title">{{ m.name if m else ('EZBody (EMS)' if is_ezb else 'Musculação') }}</div>
+            <div class="mod-card-sub">{{ '20 minutos · Alta intensidade' if is_ezb else '45–60 minutos · Hipertrofia e definição' }}</div>
+          </div>
+          <span class="badge-free"><i class="fas fa-gift me-1"></i>Grátis</span>
+        </div>
+
+        <ul class="mod-benefits">
+          {% if is_ezb %}
+            <li><i class="fas fa-check-circle"></i>Treino completo em apenas 20 minutos</li>
+            <li><i class="fas fa-check-circle"></i>Eletroestimulação — recruta 90% das fibras musculares</li>
+            <li><i class="fas fa-check-circle"></i>Ideal para emagrecimento e combate à flacidez</li>
+          {% else %}
+            <li><i class="fas fa-check-circle"></i>Ganho de massa e força progressiva</li>
+            <li><i class="fas fa-check-circle"></i>Acompanhamento personalizado do professor</li>
+            <li><i class="fas fa-check-circle"></i>Treino adaptado ao seu nível e objetivo</li>
+          {% endif %}
+        </ul>
+
+        <div class="mod-card-footer">
+          {% if is_ezb and needs_parq %}
+            <a href="{{ url_for('onboarding.parq') }}" class="btn-book-demo parq-first">
+              <i class="fas fa-shield-alt me-1"></i>Fazer triagem e agendar aula grátis
+            </a>
+          {% elif m %}
+            <a href="{{ url_for('onboarding.book_demo', modality_id=m.id) }}" class="btn-book-demo">
+              <i class="fas fa-calendar-plus me-1"></i>Agendar aula grátis de {{ m.name }}
+            </a>
+          {% else %}
+            <a href="{{ url_for('student.schedule') }}" class="btn-book-demo">
+              <i class="fas fa-calendar-alt me-1"></i>Ver horários disponíveis
+            </a>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+
+    {% if 'ezbody' in suggestions and 'musculacao' in suggestions %}
+    <div class="schedule-card">
+      <h6><i class="fas fa-calendar-week me-1 text-primary"></i>Cronograma intercalado sugerido</h6>
+      <table class="schedule-table">
+        <tr><td>Segunda</td><td>EZBody — emagrecimento (corpo todo)</td></tr>
+        <tr><td>Terça</td><td>Musculação — membros superiores</td></tr>
+        <tr><td>Quarta</td><td>Descanso ativo</td></tr>
+        <tr><td>Quinta</td><td>EZBody — combate à flacidez</td></tr>
+        <tr><td>Sexta</td><td>Musculação — membros inferiores</td></tr>
+        <tr><td>Sábado</td><td>Cardio / gasto calórico</td></tr>
+      </table>
+    </div>
+    {% endif %}
+
+    <a href="{{ url_for('onboarding.quiz') }}" class="btn-redo-quiz">
+      <i class="fas fa-redo me-1"></i>Refazer o quiz
+    </a>
+
+  </div>
+</div>
+{% endblock %}

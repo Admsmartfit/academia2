@@ -164,6 +164,7 @@ def schedule():
 
     provider_id  = request.args.get("provider_id",  type=int)
     modality_id  = request.args.get("modality_id",  type=int)
+    turno        = request.args.get("turno", "")
 
     # ── Slots do dia ────────────────────────────────────────────────────
     q = (
@@ -180,6 +181,11 @@ def schedule():
         q = q.filter(ScheduleSlot.modality_id == modality_id)
 
     slots = q.all()
+
+    # Turno filter
+    if turno:
+        from app.services.onboarding import filter_slots_by_turno
+        slots = filter_slots_by_turno(slots, turno)
 
     # ── Bookings do aluno para o dia ────────────────────────────────────
     booked_slot_ids = {
@@ -211,6 +217,10 @@ def schedule():
     # ── Assinaturas ativas ──────────────────────────────────────────────
     active_subs = _active_subscriptions()
 
+    # ── Lead profile (para banner de onboarding) ────────────────────────
+    from app.models.lead_profile import LeadProfile
+    lead_profile = LeadProfile.query.filter_by(user_id=current_user.id).first()
+
     return render_template(
         "student/schedule.html",
         selected_date=selected_date,
@@ -222,6 +232,8 @@ def schedule():
         modalities=modalities,
         provider_id=provider_id,
         modality_id=modality_id,
+        turno=turno,
+        lead_profile=lead_profile,
         slot_status_label=_slot_status_label,
         today=today,
         weekday_long=_WEEKDAY_BR_LONG,
@@ -307,10 +319,14 @@ def api_slots():
     Aceita:
       - ?date=YYYY-MM-DD          → retorna slots de um único dia
       - ?start_date=...&end_date= → retorna slots agrupados por dia (visão lista)
+      - ?turno=manha|tarde|noite|fds → filtro por turno do dia
     """
+    from app.services.onboarding import filter_slots_by_turno
+
     today = date.today()
     provider_id = request.args.get("provider_id", type=int)
     modality_id = request.args.get("modality_id", type=int)
+    turno       = request.args.get("turno", "")
 
     raw_start = request.args.get("start_date") or request.args.get("date")
     raw_end   = request.args.get("end_date")
@@ -336,6 +352,10 @@ def api_slots():
         q = q.filter(ScheduleSlot.modality_id == modality_id)
 
     slots = q.all()
+
+    # Turno filter (post-query, Python-side)
+    if turno:
+        slots = filter_slots_by_turno(slots, turno)
 
     booked_slot_ids = {
         b.slot_id

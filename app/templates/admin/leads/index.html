@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+{% block title %}Leads — Admin{% endblock %}
+
+{% block extra_css %}
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+body { background: #f1f3f5; }
+.admin-topbar {
+  background: #212529;
+  color: #fff;
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: sticky; top: 0; z-index: 200;
+}
+.admin-topbar h1 { font-size: 1rem; font-weight: 700; margin: 0; flex: 1; }
+.admin-topbar a  { color: rgba(255,255,255,.7); text-decoration: none; font-size: .8rem; }
+.admin-topbar a:hover { color: #fff; }
+
+.admin-body { max-width: 900px; margin: 0 auto; padding: 16px; }
+
+/* Funnel strip */
+.funnel-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 16px;
+  -webkit-overflow-scrolling: touch;
+}
+.funnel-pill {
+  display: flex; flex-direction: column; align-items: center;
+  background: #fff;
+  border: 2px solid #dee2e6;
+  border-radius: 12px;
+  padding: 8px 12px;
+  min-width: 80px;
+  flex-shrink: 0;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all .15s;
+}
+.funnel-pill:hover, .funnel-pill.active {
+  border-color: var(--primary-color);
+  background: #fff3ec;
+}
+.funnel-pill.all.active { border-color: #212529; background: #212529; color: #fff; }
+.fp-count { font-size: 1.2rem; font-weight: 800; color: #212529; }
+.fp-label { font-size: .62rem; text-transform: uppercase; color: #6c757d; margin-top: 1px; text-align: center; }
+.funnel-pill.active .fp-count { color: var(--primary-color); }
+.funnel-pill.all.active .fp-count, .funnel-pill.all.active .fp-label { color: #fff; }
+
+/* Create lead button */
+.btn-create {
+  background: var(--primary-color);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 9px 16px;
+  font-size: .82rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background .15s;
+}
+.btn-create:hover { background: #e0531d; color: #fff; }
+
+/* Table */
+.leads-table-wrap {
+  background: #fff;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1.5px solid #dee2e6;
+  margin-top: 12px;
+}
+.leads-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .82rem;
+}
+.leads-table th {
+  background: #f8f9fa;
+  padding: 11px 14px;
+  text-align: left;
+  font-weight: 700;
+  font-size: .72rem;
+  text-transform: uppercase;
+  color: #6c757d;
+  border-bottom: 2px solid #e9ecef;
+}
+.leads-table td {
+  padding: 11px 14px;
+  border-bottom: 1px solid #f0f0f0;
+  vertical-align: middle;
+}
+.leads-table tr:last-child td { border-bottom: none; }
+.leads-table tr:hover td { background: #fafafa; }
+
+.step-badge {
+  display: inline-block;
+  border-radius: 20px;
+  padding: 3px 9px;
+  font-size: .65rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.step-quiz           { background: #e9ecef; color: #495057; }
+.step-suggestion     { background: #dbeafe; color: #1e40af; }
+.step-parq           { background: #ede9fe; color: #5b21b6; }
+.step-booking        { background: #fef9c3; color: #854d0e; }
+.step-confirmed      { background: #d1fae5; color: #065f46; }
+.step-demo_realizada { background: #dcfce7; color: #166534; }
+.step-converted      { background: #FF6B35; color: #fff; }
+
+.btn-view {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: .78rem;
+}
+.btn-view:hover { text-decoration: underline; }
+
+/* Create modal */
+.modal-create {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.45);
+  z-index: 1050;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.modal-create.open { display: flex; }
+.modal-box {
+  background: #fff;
+  border-radius: 18px;
+  padding: 24px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.2);
+}
+.modal-box h5 { font-weight: 800; margin-bottom: 16px; }
+.form-group { margin-bottom: 12px; }
+.form-group label { font-size: .78rem; font-weight: 600; color: #495057; display: block; margin-bottom: 4px; }
+.form-group input {
+  width: 100%; padding: 10px 12px;
+  border: 1.5px solid #dee2e6; border-radius: 10px;
+  font-size: .85rem; outline: none;
+}
+.form-group input:focus { border-color: var(--primary-color); }
+.modal-actions { display: flex; gap: 8px; margin-top: 16px; }
+.btn-modal-cancel {
+  flex: 1; padding: 11px; border: 2px solid #dee2e6; background: none;
+  border-radius: 10px; font-weight: 600; cursor: pointer; color: #6c757d;
+}
+.btn-modal-submit {
+  flex: 1; padding: 11px; background: var(--primary-color); color: #fff;
+  border: none; border-radius: 10px; font-weight: 700; cursor: pointer;
+}
+
+.empty-leads {
+  text-align: center; padding: 48px 20px; color: #adb5bd;
+}
+.empty-leads i { font-size: 2.5rem; display: block; margin-bottom: 10px; opacity: .3; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="admin-topbar">
+  <i class="fas fa-users" style="font-size:1.1rem"></i>
+  <h1>Funil de Leads</h1>
+  <a href="{{ url_for('admin.leads_funnel') }}"><i class="fas fa-chart-bar me-1"></i>Métricas</a>
+  <button class="btn-create" onclick="document.getElementById('modal-create').classList.add('open')" style="margin-left:8px">
+    <i class="fas fa-plus"></i>Novo Lead
+  </button>
+</div>
+
+<div class="admin-body">
+
+  <!-- Funnel filter strip -->
+  <div class="funnel-strip">
+    <a class="funnel-pill all {{ 'active' if not step_filter }}" href="{{ url_for('admin.leads') }}">
+      <span class="fp-count">{{ leads|length if not step_filter else (step_counts.values()|sum) }}</span>
+      <span class="fp-label">Todos</span>
+    </a>
+    {% for step_key, step_name in funnel_steps %}
+    <a class="funnel-pill {{ 'active' if step_filter == step_key }}"
+       href="{{ url_for('admin.leads', step=step_key) }}">
+      <span class="fp-count">{{ step_counts.get(step_key, 0) }}</span>
+      <span class="fp-label">{{ step_name }}</span>
+    </a>
+    {% endfor %}
+  </div>
+
+  <!-- Flash messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+    <div class="alert alert-{{ 'success' if cat == 'success' else 'warning' if cat == 'warning' else 'danger' }} mb-3"
+         style="border-radius:10px;font-size:.82rem">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <!-- Leads table -->
+  {% if leads %}
+  <div class="leads-table-wrap">
+    <table class="leads-table">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Contato</th>
+          <th>Etapa</th>
+          <th>Origem</th>
+          <th>Criado em</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for lead in leads %}
+        <tr>
+          <td>
+            <strong>{{ lead.user.name }}</strong>
+          </td>
+          <td style="color:#6c757d">
+            {{ lead.user.email }}<br>
+            <small>{{ lead.user.phone }}</small>
+          </td>
+          <td>
+            <span class="step-badge step-{{ lead.onboarding_step }}">
+              {{ dict(funnel_steps).get(lead.onboarding_step, lead.onboarding_step) }}
+            </span>
+          </td>
+          <td style="color:#6c757d;font-size:.75rem">
+            {{ lead.user.lead_source or '—' }}
+          </td>
+          <td style="color:#6c757d;font-size:.75rem">
+            {{ lead.created_at.strftime('%d/%m/%y') if lead.created_at else '—' }}
+          </td>
+          <td>
+            <a class="btn-view" href="{{ url_for('admin.lead_detail', lead_id=lead.id) }}">
+              Ver <i class="fas fa-chevron-right ms-1"></i>
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="leads-table-wrap">
+    <div class="empty-leads">
+      <i class="fas fa-users"></i>
+      <p>Nenhum lead encontrado nesta etapa.</p>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- Create lead modal -->
+<div class="modal-create" id="modal-create">
+  <div class="modal-box">
+    <h5><i class="fas fa-user-plus me-2"></i>Criar Lead Manual</h5>
+    <form action="{{ url_for('admin.lead_create') }}" method="POST">
+      <div class="form-group">
+        <label>Nome completo</label>
+        <input type="text" name="name" placeholder="João Silva" required>
+      </div>
+      <div class="form-group">
+        <label>Telefone</label>
+        <input type="text" name="phone" placeholder="(11) 99999-9999" required>
+      </div>
+      <div class="form-group">
+        <label>E-mail</label>
+        <input type="email" name="email" placeholder="joao@email.com" required>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-modal-cancel"
+                onclick="document.getElementById('modal-create').classList.remove('open')">
+          Cancelar
+        </button>
+        <button type="submit" class="btn-modal-submit">
+          <i class="fas fa-plus me-1"></i>Criar
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

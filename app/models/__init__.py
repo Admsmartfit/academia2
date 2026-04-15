@@ -12,3 +12,4 @@ from app.models.workout_log import WorkoutLog
 from app.models.expense import Expense
 from app.models.audit_log import AuditLog
 from app.models.consent_log import ConsentLog
+from app.models.lead_profile import LeadProfile

@@ -28,7 +28,6 @@ O **EZBody** é uma modalidade de **eletroestimulação muscular (EMS)** — tre
 | A partir semana 4 | **Intermediário** | 10–55 Hz | Emagrecimento — fibra vermelha | Aumentar 5 Hz conforme resultado estético |
 | Avançado | **Hipertrofia** | 60+ Hz | Volume — fibra branca | Apenas após baixo % de gordura |
 
-**Parâmetros técnicos comuns:** Tempo ON: 60s / Tempo OFF: 5s / Rise-Decay: 3–5s / Largura de pulso: 400 µA / 5 min por grupo muscular.
 
 ### Regras médicas relevantes para triagem de clientes
 
@@ -47,7 +46,7 @@ O **EZBody** é uma modalidade de **eletroestimulação muscular (EMS)** — tre
 - Beber 500ml de água ou isotônico antes da sessão
 - Palatinose recomendada para quem usa medicamentos emagrecedores
 
-**Intervalo mínimo entre sessões EMS:** 7 dias. A aula demo de EZBody é uma sessão única — novo agendamento só após 7 dias.
+**Intervalo mínimo entre sessões EMS:** 48 horas. A aula demo de EZBody é uma sessão única — 
 
 ### Cronograma intercalado EZBody + Musculação (para apresentar ao cliente)
 
@@ -244,7 +243,7 @@ POST /onboarding/parq/submit            → Valida, salva; redireciona para book
 - `cost_at_booking = 0`, `subscription_id = null`, `booking_type = 'demo'`
 - Janela máxima: slot deve estar entre hoje e `hoje + 20 dias`
 - Limite de 1 demo por modalidade por cliente
-- `NO_SHOW` automático se cliente não aparecer e não cancelar após 30 min do início
+- `NO_SHOW` automático se cliente não aparecer e não cancelar após 15 min do início
 - Após demo realizada: trigger notifica admin e exibe tela de conversão
 
 #### 4.3.2 Tela de Agendamento da Demo

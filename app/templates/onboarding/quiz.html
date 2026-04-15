@@ -1,0 +1,429 @@
+{% extends "base.html" %}
+{% block title %}Descubra seu Treino Ideal{% endblock %}
+
+{% block extra_css %}
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+
+body { background: #f8f9fa; }
+
+.quiz-wrap {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Progress bar */
+.quiz-progress {
+  padding: 16px 20px 0;
+}
+.progress-label {
+  font-size: .72rem;
+  color: #6c757d;
+  margin-bottom: 6px;
+  display: flex;
+  justify-content: space-between;
+}
+.progress-bar-wrap {
+  height: 5px;
+  background: #e9ecef;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: var(--primary-color);
+  border-radius: 3px;
+  transition: width .4s ease;
+}
+
+/* Header */
+.quiz-header {
+  background: linear-gradient(135deg, #FF6B35 0%, #e0531d 100%);
+  color: #fff;
+  padding: 20px 20px 24px;
+}
+.quiz-header h1 {
+  font-size: 1.1rem;
+  font-weight: 800;
+  margin: 0 0 4px;
+}
+.quiz-header p { font-size: .82rem; opacity: .9; margin: 0; }
+
+/* Steps */
+.quiz-body { flex: 1; padding: 20px; }
+
+.quiz-step { display: none; }
+.quiz-step.active { display: block; animation: fadeIn .3s ease; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.step-question {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #212529;
+  margin-bottom: 18px;
+  line-height: 1.4;
+}
+
+/* Option cards */
+.option-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 2px solid #e9ecef;
+  border-radius: 14px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: border-color .15s, background .15s, transform .1s;
+  background: #fff;
+  user-select: none;
+}
+.option-card:hover { border-color: #ffb899; background: #fff8f5; }
+.option-card.selected {
+  border-color: var(--primary-color);
+  background: #fff3ec;
+}
+.option-card.selected .opt-check {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+}
+.option-card.selected .opt-check::after {
+  display: block;
+}
+.option-icon {
+  font-size: 1.3rem;
+  width: 36px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.option-text {
+  flex: 1;
+  font-size: .88rem;
+  font-weight: 600;
+  color: #343a40;
+  line-height: 1.3;
+}
+.opt-check {
+  width: 20px; height: 20px;
+  border: 2px solid #dee2e6;
+  border-radius: 50%;
+  flex-shrink: 0;
+  position: relative;
+  transition: all .15s;
+}
+.opt-check::after {
+  content: '';
+  display: none;
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 10px; height: 10px;
+  background: #fff;
+  border-radius: 50%;
+}
+
+/* Navigation */
+.quiz-nav {
+  display: flex;
+  gap: 10px;
+  padding: 0 20px 32px;
+}
+.btn-quiz-back {
+  background: none;
+  border: 2px solid #dee2e6;
+  color: #6c757d;
+  border-radius: 14px;
+  padding: 13px 20px;
+  font-size: .88rem;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all .15s;
+}
+.btn-quiz-back:hover { border-color: #adb5bd; color: #343a40; }
+.btn-quiz-next {
+  flex: 1;
+  background: var(--primary-color);
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  padding: 14px;
+  font-size: .95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s, opacity .15s;
+}
+.btn-quiz-next:disabled {
+  background: #dee2e6;
+  color: #adb5bd;
+  cursor: not-allowed;
+}
+.btn-quiz-next:not(:disabled):hover { background: #e0531d; }
+
+/* Calculating screen */
+.quiz-calculating {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+}
+.calc-spinner {
+  width: 60px; height: 60px;
+  border: 5px solid #f0f0f0;
+  border-top-color: var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.calc-text { font-size: 1rem; font-weight: 700; color: #343a40; }
+.calc-sub   { font-size: .82rem; color: #6c757d; margin-top: 6px; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="quiz-wrap">
+
+  <!-- Progress -->
+  <div class="quiz-progress">
+    <div class="progress-label">
+      <span id="step-label">Pergunta 1 de 5</span>
+      <span id="step-pct">0%</span>
+    </div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <div class="quiz-header">
+    <h1><i class="fas fa-dumbbell me-2"></i>Descubra seu Treino Ideal</h1>
+    <p>Responda 5 perguntas rápidas e ganhe uma aula GRÁTIS</p>
+  </div>
+
+  <!-- Steps -->
+  <div class="quiz-body" id="quiz-body">
+
+    <!-- P1 — Objetivo -->
+    <div class="quiz-step active" id="step-1" data-name="objetivo">
+      <div class="step-question">Qual é o seu principal objetivo?</div>
+      <div class="option-card" data-value="emagrecer" onclick="selectOpt(this)">
+        <div class="option-icon">🔥</div>
+        <div class="option-text">Emagrecer e definir</div>
+        <div class="opt-check"></div>
+      </div>
+      <div class="option-card" data-value="ganhar_massa" onclick="selectOpt(this)">
+        <div class="option-icon">💪</div>
+        <div class="option-text">Ganhar massa muscular</div>
+        <div class="opt-check"></div>
+      </div>
+      <div class="option-card" data-value="saude" onclick="selectOpt(this)">
+        <div class="option-icon">❤️</div>
+        <div class="option-text">Melhorar saúde e disposição</div>
+        <div class="opt-check"></div>
+      </div>
+      <div class="option-card" data-value="reabilitacao" onclick="selectOpt(this)">
+        <div class="option-icon">🩺</div>
+        <div class="option-text">Reabilitação / aliviar dores</div>
+        <div class="opt-check"></div>
+      </div>
+      <div class="option-card" data-value="manutencao" onclick="selectOpt(this)">
+        <div class="option-icon">⚖️</div>
+        <div class="option-text">Manutenção e qualidade de vida</div>
+        <div class="opt-check"></div>
+      </div>
+    </div>
+
+    <!-- P2 — Tempo -->
+    <div class="quiz-step" id="step-2" data-name="tempo">
+      <div class="step-question">Quanto tempo você tem disponível por sessão?</div>
+      <div class="option-card" data-value="ate_30" onclick="selectOpt(this)">
+        <div class="option-icon">⏱️</div>
+        <div class="option-text">Até 30 minutos</div>
+        <div class="opt-check"></div>
+      </div>
+      <div class="option-card" data-value="30_60" onclick="selectOpt(this)">
+        <div class="option-icon">⏰</div>
+        <div class="option-text">Entre 30 e 60 minutos</div>
+        <div class="opt-check"></div>
+      </div>
+      <div class="option-card" data-value="mais_60" onclick="selectOpt(this)">
+        <div class="option-icon">🕐</div>
+        <div class="option-text">Mais de 60 minutos</div>
+        <div class="opt-check"></div>
+      </div>
+    </div>
+
+    <!-- P3 — Frequência -->
+    <div class="quiz-step" id="step-3" data-name="frequencia">
+      <div class="step-question">Com que frequência pretende treinar?</div>
+      <div class="option-card" data-value="1_2x" onclick="selectOpt(this)">
+        <div class="option-icon">🗓️</div>
+        <div class="option-text">1–2x por semana</div>
+        <div class="opt-check"></div>
+      </div>
+      <div class="option-card" data-value="3_4x" onclick="selectOpt(this)">
+        <div class="option-icon">📅</div>
+        <div class="option-text">3–4x por semana</div>
+        <div class="opt-check"></div>
+      </div>
+      <div class="option-card" data-value="todos_dias" onclick="selectOpt(this)">
+        <div class="option-icon">🏆</div>
+        <div class="option-text">Todos os dias</div>
+        <div class="opt-check"></div>
+      </div>
+    </div>
+
+    <!-- P4 — Experiência -->
+    <div class="quiz-step" id="step-4" data-name="experiencia">
+      <div class="step-question">Já praticou musculação antes?</div>
+      <div class="option-card" data-value="sim" onclick="selectOpt(this)">
+        <div class="option-icon">✅</div>
+        <div class="option-text">Sim, treino ou já treinei</div>
+        <div class="opt-check"></div>
+      </div>
+      <div class="option-card" data-value="nao" onclick="selectOpt(this)">
+        <div class="option-icon">🌱</div>
+        <div class="option-text">Não, é minha primeira vez</div>
+        <div class="opt-check"></div>
+      </div>
+    </div>
+
+    <!-- P5 — Turno -->
+    <div class="quiz-step" id="step-5" data-name="turno">
+      <div class="step-question">Quando você prefere treinar?</div>
+      <div class="option-card" data-value="manha" onclick="selectOpt(this)">
+        <div class="option-icon">🌅</div>
+        <div class="option-text">Manhã (06:00–12:00)</div>
+        <div class="opt-check"></div>
+      </div>
+      <div class="option-card" data-value="tarde" onclick="selectOpt(this)">
+        <div class="option-icon">☀️</div>
+        <div class="option-text">Tarde (12:00–18:00)</div>
+        <div class="opt-check"></div>
+      </div>
+      <div class="option-card" data-value="noite" onclick="selectOpt(this)">
+        <div class="option-icon">🌙</div>
+        <div class="option-text">Noite (18:00–22:00)</div>
+        <div class="opt-check"></div>
+      </div>
+      <div class="option-card" data-value="fds" onclick="selectOpt(this)">
+        <div class="option-icon">🎉</div>
+        <div class="option-text">Final de semana</div>
+        <div class="opt-check"></div>
+      </div>
+    </div>
+
+    <!-- Calculating -->
+    <div class="quiz-calculating" id="step-calc">
+      <div class="calc-spinner"></div>
+      <div class="calc-text">Calculando seu perfil...</div>
+      <div class="calc-sub">Encontrando as melhores modalidades para você</div>
+    </div>
+
+  </div><!-- /quiz-body -->
+
+  <!-- Hidden form submitted on last step -->
+  <form id="quiz-form" action="{{ url_for('onboarding.quiz_submit') }}" method="POST" style="display:none">
+    <input type="hidden" name="objetivo"    id="f-objetivo">
+    <input type="hidden" name="tempo"       id="f-tempo">
+    <input type="hidden" name="frequencia"  id="f-frequencia">
+    <input type="hidden" name="experiencia" id="f-experiencia">
+    <input type="hidden" name="turno"       id="f-turno">
+  </form>
+
+  <!-- Navigation -->
+  <div class="quiz-nav" id="quiz-nav">
+    <button class="btn-quiz-back" id="btn-back" onclick="goBack()" style="display:none">
+      <i class="fas fa-arrow-left"></i>
+    </button>
+    <button class="btn-quiz-next" id="btn-next" onclick="goNext()" disabled>
+      Próximo <i class="fas fa-arrow-right ms-1"></i>
+    </button>
+  </div>
+
+</div><!-- /quiz-wrap -->
+{% endblock %}
+
+{% block page_js %}
+<script>
+const TOTAL_STEPS = 5;
+let currentStep = 1;
+const answers   = {};
+
+function updateProgress() {
+  const pct = Math.round((currentStep - 1) / TOTAL_STEPS * 100);
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('step-pct').textContent   = pct + '%';
+  document.getElementById('step-label').textContent = `Pergunta ${currentStep} de ${TOTAL_STEPS}`;
+  document.getElementById('btn-back').style.display = currentStep > 1 ? '' : 'none';
+}
+
+function selectOpt(el) {
+  el.closest('.quiz-step').querySelectorAll('.option-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('btn-next').disabled = false;
+}
+
+function goNext() {
+  const step    = document.getElementById('step-' + currentStep);
+  const name    = step.dataset.name;
+  const sel     = step.querySelector('.option-card.selected');
+  if (!sel) return;
+  answers[name] = sel.dataset.value;
+
+  if (currentStep === TOTAL_STEPS) {
+    submitQuiz();
+    return;
+  }
+  step.classList.remove('active');
+  currentStep++;
+  document.getElementById('step-' + currentStep).classList.add('active');
+  document.getElementById('btn-next').disabled = true;
+
+  // Restore previously selected option if user went back
+  if (answers[document.getElementById('step-' + currentStep).dataset.name]) {
+    const prev = answers[document.getElementById('step-' + currentStep).dataset.name];
+    const card = document.querySelector(`#step-${currentStep} [data-value="${prev}"]`);
+    if (card) { card.classList.add('selected'); document.getElementById('btn-next').disabled = false; }
+  }
+  updateProgress();
+}
+
+function goBack() {
+  if (currentStep <= 1) return;
+  document.getElementById('step-' + currentStep).classList.remove('active');
+  currentStep--;
+  document.getElementById('step-' + currentStep).classList.add('active');
+  document.getElementById('btn-next').disabled =
+    !document.querySelector(`#step-${currentStep} .option-card.selected`);
+  updateProgress();
+}
+
+function submitQuiz() {
+  // Show calculating animation
+  document.getElementById('step-' + currentStep).classList.remove('active');
+  document.getElementById('step-calc').style.display = 'flex';
+  document.getElementById('quiz-nav').style.display  = 'none';
+
+  // Fill form fields
+  Object.entries(answers).forEach(([k, v]) => {
+    const el = document.getElementById('f-' + k);
+    if (el) el.value = v;
+  });
+
+  // Submit after 1.5s animation
+  setTimeout(() => document.getElementById('quiz-form').submit(), 1500);
+}
+
+updateProgress();
+</script>
+{% endblock %}

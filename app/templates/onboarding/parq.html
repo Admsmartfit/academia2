@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}Triagem de Saúde — EZBody{% endblock %}
+
+{% block extra_css %}
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+body { background: #f8f9fa; }
+.parq-wrap { max-width: 480px; margin: 0 auto; padding-bottom: 40px; }
+
+.parq-header {
+  background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%);
+  color: #fff;
+  padding: 20px 20px 24px;
+}
+.parq-header h1 { font-size: 1.1rem; font-weight: 800; margin: 0 0 4px; }
+.parq-header p  { font-size: .82rem; opacity: .9; margin: 0; }
+
+.parq-body { padding: 20px; }
+
+.parq-intro {
+  background: #fff;
+  border-radius: 14px;
+  border: 1.5px solid #dee2e6;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+  font-size: .82rem;
+  color: #495057;
+  line-height: 1.5;
+}
+.parq-intro strong { color: #212529; }
+
+.parq-question {
+  background: #fff;
+  border-radius: 14px;
+  border: 1.5px solid #e9ecef;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+}
+.parq-q-text {
+  font-size: .88rem;
+  font-weight: 600;
+  color: #212529;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+.parq-toggle {
+  display: flex;
+  gap: 8px;
+}
+.parq-opt {
+  flex: 1;
+  padding: 10px;
+  border: 2px solid #e9ecef;
+  border-radius: 10px;
+  text-align: center;
+  font-size: .82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+  background: #f8f9fa;
+  color: #6c757d;
+}
+.parq-opt:hover { border-color: #adb5bd; }
+.parq-opt.yes.selected { border-color: #dc3545; background: #fff5f5; color: #dc3545; }
+.parq-opt.no.selected  { border-color: #198754; background: #f0fdf4; color: #198754; }
+
+/* Alert badges for warnings */
+.parq-alert-badge {
+  display: none;
+  margin-top: 10px;
+  background: #fff8e1;
+  border: 1.5px solid #ffc107;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: .78rem;
+  color: #856404;
+}
+
+.btn-parq-submit {
+  width: 100%;
+  background: #6f42c1;
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  padding: 14px;
+  font-size: .95rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: background .15s;
+}
+.btn-parq-submit:hover { background: #5a32a3; }
+
+.parq-back {
+  display: block;
+  text-align: center;
+  margin-top: 14px;
+  font-size: .8rem;
+  color: #6c757d;
+  text-decoration: none;
+}
+.parq-back:hover { color: #343a40; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="parq-wrap">
+
+  <div class="parq-header">
+    <h1><i class="fas fa-shield-alt me-2"></i>Triagem de Saúde — EZBody</h1>
+    <p>6 perguntas rápidas para garantir sua segurança na eletroestimulação</p>
+  </div>
+
+  <div class="parq-body">
+
+    <div class="parq-intro">
+      <strong>Por que isso é necessário?</strong><br>
+      O EZBody utiliza eletroestimulação muscular (EMS). Para sua segurança, precisamos verificar
+      algumas condições de saúde antes de agendar sua aula demonstrativa.
+    </div>
+
+    <form action="{{ url_for('onboarding.parq_submit') }}" method="POST" id="parq-form">
+
+      {% set questions = [
+        ('q1', 'Você possui marcapasso ou implante elétrico ativo?',       'blocker', ''),
+        ('q2', 'Você está grávida ou pode estar grávida?',                 'blocker', ''),
+        ('q3', 'Você tem epilepsia ou convulsões frequentes?',             'blocker', ''),
+        ('q4', 'Você tem feridas abertas ou inflamações na pele?',         'blocker', ''),
+        ('q5', 'Você tem diagnóstico de Linfedema ou Lipedema?',           'warning', 'Atenção: se sim, o protocolo será adaptado (fibra vermelha apenas). Isso não impede a aula.'),
+        ('q6', 'Você usa medicamentos emagrecedores (semaglutida, etc.)?', 'warning', 'Alerta nutricional: nunca faça EMS em jejum. Beba 500ml de água ou isotônico antes da sessão. Palatinose é recomendada.'),
+      ] %}
+
+      {% for name, text, qtype, alert_text in questions %}
+      <div class="parq-question" id="pq-{{ name }}">
+        <div class="parq-q-text">{{ loop.index }}. {{ text }}</div>
+        <div class="parq-toggle">
+          <input type="hidden" name="{{ name }}" id="val-{{ name }}" value="">
+          <div class="parq-opt yes" onclick="selectParq('{{ name }}', 'yes', this)">
+            <i class="fas fa-times me-1"></i>Sim
+          </div>
+          <div class="parq-opt no" onclick="selectParq('{{ name }}', 'no', this)">
+            <i class="fas fa-check me-1"></i>Não
+          </div>
+        </div>
+        {% if alert_text %}
+        <div class="parq-alert-badge" id="alert-{{ name }}">
+          <i class="fas fa-exclamation-triangle me-1"></i>{{ alert_text }}
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+
+      <button type="submit" class="btn-parq-submit" id="btn-parq" disabled>
+        <i class="fas fa-arrow-right me-1"></i>Continuar para o agendamento
+      </button>
+
+    </form>
+
+    <a href="{{ url_for('onboarding.suggestion') }}" class="parq-back">
+      <i class="fas fa-arrow-left me-1"></i>Voltar às sugestões
+    </a>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block page_js %}
+<script>
+const answers = {};
+const WARNING_NAMES = ['q5', 'q6'];
+const TOTAL = 6;
+
+function selectParq(name, val, el) {
+  const parent = el.closest('.parq-toggle');
+  parent.querySelectorAll('.parq-opt').forEach(o => o.classList.remove('selected'));
+  el.classList.add(val === 'yes' ? 'yes' : 'no', 'selected');
+  document.getElementById('val-' + name).value = val;
+  answers[name] = val;
+
+  // Show alert for warning questions answered 'yes'
+  const alertEl = document.getElementById('alert-' + name);
+  if (alertEl) {
+    alertEl.style.display = val === 'yes' ? 'block' : 'none';
+  }
+
+  // Enable submit when all 6 answered
+  document.getElementById('btn-parq').disabled =
+    Object.keys(answers).length < TOTAL;
+}
+</script>
+{% endblock %}

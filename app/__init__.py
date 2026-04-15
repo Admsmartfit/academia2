@@ -52,7 +52,9 @@ def create_app(config_override: dict | None = None) -> Flask:
     def index():
         from flask_login import current_user
         if current_user.is_authenticated:
-            if current_user.is_instructor or current_user.role == "admin":
+            if current_user.role == "admin":
+                return redirect(url_for("admin.leads"))
+            if current_user.is_instructor:
                 return redirect(url_for("provider.dashboard"))
             return redirect(url_for("student.schedule"))
         return redirect(url_for("auth.login"))
@@ -61,9 +63,13 @@ def create_app(config_override: dict | None = None) -> Flask:
     from app.routes.auth import auth_bp
     from app.routes.provider import provider_bp
     from app.routes.student import student_bp
+    from app.routes.onboarding import onboarding_bp
+    from app.routes.admin import admin_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(provider_bp)
     app.register_blueprint(student_bp)
+    app.register_blueprint(onboarding_bp)
+    app.register_blueprint(admin_bp)
 
     return app

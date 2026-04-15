@@ -1,0 +1,422 @@
+{% extends "base.html" %}
+{% block title %}Agendar Aula Grátis — {{ modality.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+body { background: #f8f9fa; }
+
+/* Top bar */
+.demo-topbar {
+  background: linear-gradient(135deg, #198754 0%, #157347 100%);
+  color: #fff;
+  padding: 14px 16px 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+}
+.demo-topbar a   { color: rgba(255,255,255,.85); text-decoration: none; }
+.demo-topbar h1  { font-size: 1rem; font-weight: 700; margin: 0; flex: 1; }
+.badge-free-top {
+  background: #fff;
+  color: #157347;
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: .68rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+/* Alerts */
+.demo-alert {
+  margin: 10px 12px 0;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: .78rem;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.demo-alert.nutrition { background: #fff3cd; border: 1.5px solid #ffc107; color: #856404; }
+.demo-alert.linfedema { background: #e8f4fd; border: 1.5px solid #0dcaf0; color: #055160; }
+
+/* Turno filter */
+.turno-strip {
+  display: flex;
+  gap: 6px;
+  padding: 12px 12px 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.turno-pill {
+  border: 2px solid #dee2e6;
+  background: #fff;
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: .75rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all .15s;
+  color: #6c757d;
+  flex-shrink: 0;
+}
+.turno-pill:hover   { border-color: #198754; color: #198754; }
+.turno-pill.active  { background: #198754; border-color: #198754; color: #fff; }
+
+/* Date strip */
+.date-strip {
+  display: flex;
+  gap: 6px;
+  padding: 12px 12px 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.date-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 48px;
+  padding: 8px 6px;
+  border: 2px solid #e9ecef;
+  border-radius: 12px;
+  cursor: pointer;
+  background: #fff;
+  transition: all .15s;
+  flex-shrink: 0;
+}
+.date-pill:hover       { border-color: #198754; }
+.date-pill.has-slots   { border-color: #c3e6cb; background: #f0fdf4; }
+.date-pill.selected    { background: #198754; border-color: #198754; color: #fff; }
+.date-pill.no-slots    { opacity: .4; cursor: default; }
+.dp-wd { font-size: .58rem; text-transform: uppercase; color: #adb5bd; }
+.dp-d  { font-size: .95rem; font-weight: 800; line-height: 1.2; }
+.date-pill.selected .dp-wd { color: rgba(255,255,255,.8); }
+.date-pill.has-slots .dp-wd:not(.date-pill.selected .dp-wd) { color: #198754; }
+.dp-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: #198754;
+  margin-top: 2px;
+}
+.date-pill.selected .dp-dot { background: rgba(255,255,255,.8); }
+.date-pill.no-slots .dp-dot { display: none; }
+
+/* Slots area */
+.slots-wrap { padding: 12px; }
+
+.slots-date-label {
+  font-size: .85rem;
+  font-weight: 700;
+  color: #343a40;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.slots-loading {
+  text-align: center;
+  padding: 40px 20px;
+  color: #adb5bd;
+}
+
+.demo-slot-card {
+  background: #fff;
+  border: 2px solid #e9ecef;
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  transition: border-color .15s;
+}
+.demo-slot-card:hover { border-color: #198754; }
+
+.slot-time-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.slot-time  { font-size: .95rem; font-weight: 700; }
+.slot-prov  { font-size: .75rem; color: #6c757d; margin-top: 2px; }
+.slot-spots {
+  font-size: .72rem;
+  font-weight: 600;
+  color: #198754;
+  background: #d1fae5;
+  border-radius: 10px;
+  padding: 3px 8px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.slot-spots.few { background: #fff3cd; color: #856404; }
+.slot-spots.full { background: #fde8e8; color: #b91c1c; }
+
+.btn-reserve {
+  width: 100%;
+  background: #198754;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 12px;
+  font-size: .85rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: background .15s;
+}
+.btn-reserve:hover    { background: #157347; }
+.btn-reserve:disabled { background: #dee2e6; color: #adb5bd; cursor: not-allowed; }
+
+.empty-slots {
+  text-align: center;
+  padding: 40px 20px;
+  color: #adb5bd;
+}
+.empty-slots i { font-size: 2rem; display: block; margin-bottom: 8px; }
+
+.alts-section { margin-top: 16px; padding-top: 14px; border-top: 1.5px dashed #e9ecef; }
+.alts-label   { font-size: .75rem; color: #6c757d; margin-bottom: 8px; }
+.alts-chips   { display: flex; flex-wrap: wrap; gap: 6px; }
+.alt-chip {
+  border: 2px solid #c3e6cb;
+  background: #f0fdf4;
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: .73rem;
+  font-weight: 600;
+  color: #157347;
+  cursor: pointer;
+  transition: all .15s;
+}
+.alt-chip:hover { background: #198754; color: #fff; border-color: #198754; }
+
+/* Toast */
+.toast-wrap {
+  position: fixed; top: 80px; left: 50%;
+  transform: translateX(-50%); z-index: 9999;
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="demo-topbar">
+  <a href="{{ url_for('onboarding.suggestion') }}"><i class="fas fa-arrow-left"></i></a>
+  <h1><i class="fas fa-bolt me-1"></i>Agendar aula grátis de {{ modality.name }}</h1>
+  <span class="badge-free-top">GRÁTIS</span>
+</div>
+
+{% if show_nutrition_alert %}
+<div class="demo-alert nutrition">
+  <i class="fas fa-apple-alt" style="flex-shrink:0;margin-top:1px"></i>
+  <div><strong>Alerta nutricional:</strong> Nunca faça EMS em jejum. Beba 500ml de água ou isotônico antes da sessão. Palatinose é recomendada para quem usa medicamentos emagrecedores.</div>
+</div>
+{% endif %}
+{% if show_linfedema_alert %}
+<div class="demo-alert linfedema">
+  <i class="fas fa-info-circle" style="flex-shrink:0;margin-top:1px"></i>
+  <div><strong>Protocolo adaptado:</strong> Devido ao diagnóstico de Linfedema/Lipedema, seu treino será focado na fibra vermelha (emagrecimento). Sem restrição para a aula.</div>
+</div>
+{% endif %}
+
+<!-- Turno filter -->
+<div class="turno-strip" id="turno-strip">
+  <div class="turno-pill {{ 'active' if not turno }}" onclick="setTurno('')">Todos</div>
+  <div class="turno-pill {{ 'active' if turno == 'manha' }}" onclick="setTurno('manha')">🌅 Manhã</div>
+  <div class="turno-pill {{ 'active' if turno == 'tarde' }}" onclick="setTurno('tarde')">☀️ Tarde</div>
+  <div class="turno-pill {{ 'active' if turno == 'noite' }}" onclick="setTurno('noite')">🌙 Noite</div>
+  <div class="turno-pill {{ 'active' if turno == 'fds' }}"  onclick="setTurno('fds')">🎉 Fim de semana</div>
+</div>
+
+<!-- Date strip (20 days) -->
+<div class="date-strip" id="date-strip">
+  {% for d in date_strip %}
+  <div class="date-pill {{ 'has-slots' if d.has_slots }} {{ 'no-slots' if not d.has_slots }}"
+       id="dp-{{ d.date }}"
+       onclick="{{ "selectDate('" + d.date + "')" if d.has_slots else '' }}">
+    <span class="dp-wd">{{ d.weekday }}</span>
+    <span class="dp-d">{{ d.day }}</span>
+    {% if d.has_slots %}<span class="dp-dot"></span>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Slots -->
+<div class="slots-wrap">
+  <div class="slots-date-label" id="slots-label" style="display:none"></div>
+  <div id="slots-container">
+    <div class="empty-slots">
+      <i class="fas fa-calendar-day"></i>
+      <p>Selecione um dia acima para ver os horários disponíveis.</p>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toast-wrap"></div>
+{% endblock %}
+
+{% block page_js %}
+<script>
+const MODALITY_ID   = {{ modality.id }};
+const CONFIRM_URL   = "{{ url_for('onboarding.book_demo_confirm', modality_id=modality.id) }}";
+const SLOTS_URL     = "{{ url_for('onboarding.book_demo_slots',   modality_id=modality.id) }}";
+const ALTS_URL      = "{{ url_for('onboarding.book_demo_alts',    modality_id=modality.id) }}";
+const WDAY_LONG     = {{ weekday_long | tojson }};
+const MONTH_NAMES   = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+let currentTurno  = {{ turno | tojson }};
+let selectedDate  = null;
+let allSlotsByDate = {{ slots_by_date_json }};
+
+/* ── Turno ── */
+function setTurno(turno) {
+  currentTurno = turno;
+  document.querySelectorAll('.turno-pill').forEach(p => p.classList.remove('active'));
+  const pills = document.querySelectorAll('.turno-pill');
+  const idx = ['', 'manha', 'tarde', 'noite', 'fds'].indexOf(turno);
+  if (idx >= 0 && pills[idx]) pills[idx].classList.add('active');
+  if (selectedDate) loadSlots(selectedDate);
+}
+
+/* ── Date selection ── */
+function selectDate(ds) {
+  selectedDate = ds;
+  document.querySelectorAll('.date-pill').forEach(p => p.classList.remove('selected'));
+  const pill = document.getElementById('dp-' + ds);
+  if (pill) pill.classList.add('selected');
+
+  const d     = new Date(ds + 'T00:00:00');
+  const wday  = WDAY_LONG[d.getDay() === 0 ? 6 : d.getDay() - 1];
+  const mname = MONTH_NAMES[d.getMonth()];
+  const lbl   = document.getElementById('slots-label');
+  lbl.style.display = '';
+  lbl.innerHTML = `<i class="fas fa-calendar-day me-1 text-success"></i>${wday}, <strong>${d.getDate()} de ${mname}</strong>`;
+
+  loadSlots(ds);
+}
+
+async function loadSlots(ds) {
+  const container = document.getElementById('slots-container');
+  container.innerHTML = '<div class="slots-loading"><i class="fas fa-spinner fa-spin fa-lg"></i></div>';
+
+  const params = new URLSearchParams({ date: ds });
+  if (currentTurno) params.append('turno', currentTurno);
+
+  try {
+    const res  = await fetch(SLOTS_URL + '?' + params);
+    const data = await res.json();
+    renderSlots(container, data.slots || [], ds);
+  } catch(e) {
+    container.innerHTML = '<div class="empty-slots"><i class="fas fa-exclamation-circle"></i><p>Erro ao carregar horários.</p></div>';
+  }
+}
+
+function renderSlots(container, slots, ds) {
+  if (!slots.length) {
+    container.innerHTML = `
+      <div class="empty-slots">
+        <i class="fas fa-calendar-times"></i>
+        <p>Nenhum horário disponível neste turno.</p>
+      </div>
+      <div class="alts-section" id="alts-section">
+        <div class="alts-label">Outras opções disponíveis:</div>
+        <div class="alts-chips" id="alts-chips">
+          <span style="font-size:.75rem;color:#adb5bd"><i class="fas fa-spinner fa-spin me-1"></i>Buscando...</span>
+        </div>
+      </div>`;
+    loadAlts();
+    return;
+  }
+
+  container.innerHTML = slots.map(s => {
+    const pct      = s.pct || 0;
+    const few      = pct >= 70;
+    const spotsLbl = `${s.available} vaga${s.available !== 1 ? 's' : ''}`;
+    const spotsCls = few ? 'few' : '';
+    return `
+    <div class="demo-slot-card" id="sc-${s.id}">
+      <div class="slot-time-row">
+        <div>
+          <div class="slot-time">${s.start_time} <small style="font-weight:400;color:#6c757d">– ${s.end_time}</small></div>
+          <div class="slot-prov"><i class="fas fa-user-circle me-1"></i>${s.provider_name}</div>
+        </div>
+        <span class="slot-spots ${spotsCls}">${spotsLbl}</span>
+      </div>
+      <button class="btn-reserve" onclick="reserveSlot(${s.id}, this)">
+        <i class="fas fa-calendar-check me-1"></i>Reservar minha vaga gratuita
+      </button>
+    </div>`;
+  }).join('');
+}
+
+async function loadAlts() {
+  const chipsEl = document.getElementById('alts-chips');
+  if (!chipsEl) return;
+  const params = new URLSearchParams();
+  if (currentTurno) params.append('turno', currentTurno);
+  try {
+    const res  = await fetch(ALTS_URL + '?' + params);
+    const data = await res.json();
+    const alts = data.alternatives || [];
+    if (!alts.length) {
+      chipsEl.innerHTML = '<span style="font-size:.75rem;color:#adb5bd">Nenhuma alternativa encontrada.</span>';
+      return;
+    }
+    chipsEl.innerHTML = alts.map(s => {
+      const d = new Date(s.date + 'T00:00:00');
+      const wday = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][d.getDay()];
+      return `<div class="alt-chip" onclick="selectDate('${s.date}')">${wday} ${d.getDate()}/${d.getMonth()+1} · ${s.start_time}</div>`;
+    }).join('');
+  } catch(e) {
+    if (chipsEl) chipsEl.innerHTML = '';
+  }
+}
+
+async function reserveSlot(slotId, btn) {
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Aguarde...';
+
+  try {
+    const res  = await fetch(CONFIRM_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slot_id: slotId }),
+    });
+    const data = await res.json();
+
+    if (!res.ok || data.error) {
+      showToast(data.error || 'Erro ao agendar.', 'danger');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-calendar-check me-1"></i>Reservar minha vaga gratuita';
+      return;
+    }
+
+    showToast('Aula agendada com sucesso!', 'success');
+    setTimeout(() => { window.location.href = data.redirect || '/onboarding/confirmed'; }, 1200);
+  } catch(e) {
+    showToast('Erro de conexão.', 'danger');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-calendar-check me-1"></i>Reservar minha vaga gratuita';
+  }
+}
+
+function showToast(msg, type = 'info') {
+  const palette = { success:'#198754', danger:'#dc3545', warning:'#e0a800', info:'#0d6efd' };
+  const t = document.createElement('div');
+  t.style.cssText = `background:${palette[type]};color:#fff;padding:10px 20px;border-radius:24px;
+    font-size:.85rem;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.2);white-space:nowrap;`;
+  t.textContent = msg;
+  document.getElementById('toast-wrap').appendChild(t);
+  setTimeout(() => { t.style.opacity='0'; t.style.transition='opacity .3s'; }, 2800);
+  setTimeout(() => t.remove(), 3200);
+}
+
+// Auto-select first date with slots
+window.addEventListener('DOMContentLoaded', () => {
+  const first = document.querySelector('.date-pill.has-slots');
+  if (first) first.click();
+});
+</script>
+{% endblock %}

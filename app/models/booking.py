@@ -24,7 +24,11 @@ class Booking(db.Model):
     
     status = db.Column(db.Enum(BookingStatus), default=BookingStatus.CONFIRMED)
     cost_at_booking = db.Column(db.Integer, nullable=False, default=0)  # créditos debitados
-    
+
+    # Módulo de Vendas: tipo de reserva e notas de demo
+    booking_type = db.Column(db.String(10), nullable=True, default='regular')  # 'regular' | 'demo'
+    demo_notes   = db.Column(db.Text, nullable=True)
+
     booked_at = db.Column(db.DateTime, default=datetime.utcnow)
     cancelled_at = db.Column(db.DateTime, nullable=True)
     cancel_reason = db.Column(db.String(255), nullable=True)

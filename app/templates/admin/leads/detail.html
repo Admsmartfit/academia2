@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+{% block title %}Lead: {{ lead.user.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+body { background: #f1f3f5; }
+.admin-topbar {
+  background: #212529; color: #fff;
+  padding: 14px 20px; display: flex; align-items: center; gap: 12px;
+  position: sticky; top: 0; z-index: 200;
+}
+.admin-topbar h1 { font-size: 1rem; font-weight: 700; margin: 0; flex: 1; }
+.admin-topbar a  { color: rgba(255,255,255,.7); text-decoration: none; }
+.admin-topbar a:hover { color: #fff; }
+
+.detail-body { max-width: 640px; margin: 0 auto; padding: 16px; }
+
+.section-card {
+  background: #fff;
+  border-radius: 14px;
+  border: 1.5px solid #e9ecef;
+  padding: 16px 18px;
+  margin-bottom: 14px;
+}
+.section-title {
+  font-size: .72rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .8px; color: #6c757d; margin-bottom: 12px;
+}
+.detail-row {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  padding: 6px 0; border-bottom: 1px solid #f0f0f0; font-size: .82rem;
+}
+.detail-row:last-child { border-bottom: none; }
+.dr-label  { color: #6c757d; }
+.dr-value  { font-weight: 600; color: #212529; text-align: right; max-width: 60%; }
+
+/* Funnel progress */
+.funnel-progress {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  overflow-x: auto;
+  padding: 4px 0;
+}
+.funnel-step-item {
+  display: flex; align-items: center;
+}
+.fsi-dot {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .65rem; font-weight: 700;
+  flex-shrink: 0;
+  border: 2px solid #dee2e6;
+  background: #f8f9fa;
+  color: #adb5bd;
+}
+.fsi-dot.done     { background: #198754; border-color: #198754; color: #fff; }
+.fsi-dot.current  { background: var(--primary-color); border-color: var(--primary-color); color: #fff; }
+.fsi-line {
+  width: 20px; height: 2px;
+  background: #dee2e6;
+  flex-shrink: 0;
+}
+.fsi-line.done { background: #198754; }
+.fsi-label {
+  font-size: .58rem;
+  text-align: center;
+  margin-top: 3px;
+  color: #6c757d;
+  white-space: nowrap;
+}
+
+/* PAR-Q answers */
+.parq-row {
+  display: flex; justify-content: space-between;
+  font-size: .8rem; padding: 5px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+.parq-row:last-child { border-bottom: none; }
+.parq-yes { color: #dc3545; font-weight: 700; }
+.parq-no  { color: #198754; font-weight: 700; }
+
+/* Demo bookings */
+.demo-card {
+  border: 1.5px solid #e9ecef;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  font-size: .82rem;
+}
+.demo-status { font-size: .68rem; font-weight: 700; border-radius: 10px; padding: 2px 8px; }
+.status-confirmed  { background: #d1fae5; color: #065f46; }
+.status-completed  { background: #dbeafe; color: #1e40af; }
+.status-cancelled  { background: #fde8e8; color: #b91c1c; }
+.status-no_show    { background: #fef3c7; color: #92400e; }
+
+/* Action buttons */
+.btn-convert {
+  background: var(--primary-color); color: #fff;
+  border: none; border-radius: 10px;
+  padding: 10px 18px; font-size: .85rem; font-weight: 700;
+  cursor: pointer; transition: background .15s;
+}
+.btn-convert:hover { background: #e0531d; }
+.btn-back-link {
+  color: #6c757d; text-decoration: none; font-size: .8rem;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.btn-back-link:hover { color: #212529; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="admin-topbar">
+  <a href="{{ url_for('admin.leads') }}"><i class="fas fa-arrow-left"></i></a>
+  <h1>{{ lead.user.name }}</h1>
+  {% if lead.onboarding_step != 'converted' %}
+  <form action="{{ url_for('admin.lead_convert', lead_id=lead.id) }}" method="POST" style="margin:0">
+    <button class="btn-convert" type="submit"
+            onclick="return confirm('Marcar como convertido manualmente?')">
+      <i class="fas fa-check me-1"></i>Converter
+    </button>
+  </form>
+  {% endif %}
+</div>
+
+<div class="detail-body">
+
+  <!-- Flash messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+    <div class="alert alert-{{ 'success' if cat == 'success' else 'danger' }} mb-3"
+         style="border-radius:10px;font-size:.82rem">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <!-- Funnel progress -->
+  <div class="section-card">
+    <div class="section-title">Etapa no Funil</div>
+    <div class="funnel-progress">
+      {% for step_key, step_name in funnel_steps %}
+        {% set step_keys = funnel_steps | map(attribute=0) | list %}
+        {% set current_idx = step_keys.index(lead.onboarding_step) if lead.onboarding_step in step_keys else 0 %}
+        {% set this_idx    = loop.index0 %}
+        <div class="funnel-step-item">
+          <div style="display:flex;flex-direction:column;align-items:center">
+            <div class="fsi-dot {{ 'done' if this_idx < current_idx else 'current' if this_idx == current_idx else '' }}">
+              {% if this_idx < current_idx %}<i class="fas fa-check"></i>{% else %}{{ loop.index }}{% endif %}
+            </div>
+            <div class="fsi-label">{{ step_name }}</div>
+          </div>
+          {% if not loop.last %}
+          <div class="fsi-line {{ 'done' if this_idx < current_idx }}"></div>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Contact info -->
+  <div class="section-card">
+    <div class="section-title">Dados do Lead</div>
+    <div class="detail-row"><span class="dr-label">Nome</span><span class="dr-value">{{ lead.user.name }}</span></div>
+    <div class="detail-row"><span class="dr-label">E-mail</span><span class="dr-value">{{ lead.user.email }}</span></div>
+    <div class="detail-row"><span class="dr-label">Telefone</span><span class="dr-value">{{ lead.user.phone }}</span></div>
+    <div class="detail-row"><span class="dr-label">Origem</span><span class="dr-value">{{ lead.user.lead_source or '—' }}</span></div>
+    <div class="detail-row"><span class="dr-label">Criado em</span><span class="dr-value">{{ lead.created_at.strftime('%d/%m/%Y %H:%M') if lead.created_at else '—' }}</span></div>
+  </div>
+
+  <!-- Quiz answers -->
+  {% if lead.quiz_completed_at %}
+  <div class="section-card">
+    <div class="section-title">Respostas do Quiz</div>
+    <div class="detail-row">
+      <span class="dr-label">Objetivo</span>
+      <span class="dr-value">{{ objetivo_labels.get(lead.objetivo, lead.objetivo or '—') }}</span>
+    </div>
+    <div class="detail-row">
+      <span class="dr-label">Tempo disponível</span>
+      <span class="dr-value">{{ {'ate_30':'Até 30 min','30_60':'30–60 min','mais_60':'Mais de 60 min'}.get(lead.tempo_disponivel, lead.tempo_disponivel or '—') }}</span>
+    </div>
+    <div class="detail-row">
+      <span class="dr-label">Frequência</span>
+      <span class="dr-value">{{ freq_labels.get(lead.frequencia, lead.frequencia or '—') }}</span>
+    </div>
+    <div class="detail-row">
+      <span class="dr-label">Experiência</span>
+      <span class="dr-value">{{ 'Já treinou' if lead.experiencia == 'sim' else 'Primeira vez' if lead.experiencia == 'nao' else '—' }}</span>
+    </div>
+    <div class="detail-row">
+      <span class="dr-label">Turno preferido</span>
+      <span class="dr-value">{{ turno_labels.get(lead.turno, lead.turno or '—') }}</span>
+    </div>
+    <div class="detail-row">
+      <span class="dr-label">Modalidades sugeridas</span>
+      <span class="dr-value">{{ (lead.modalities_suggested or []) | join(', ') or '—' }}</span>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- PAR-Q -->
+  {% if lead.parq_answers %}
+  <div class="section-card">
+    <div class="section-title">
+      Triagem PAR-Q
+      {% if lead.parq_passed %}<span style="color:#198754;font-size:.72rem">(Aprovado)</span>
+      {% else %}<span style="color:#dc3545;font-size:.72rem">(Reprovado — EZBody bloqueado)</span>{% endif %}
+    </div>
+    {% set parq_labels = {
+      'marcapasso':'Marcapasso / implante elétrico',
+      'gravida':'Gravidez',
+      'epilepsia':'Epilepsia',
+      'feridas':'Feridas / inflamações',
+      'linfedema':'Linfedema / Lipedema',
+      'emagrecedor':'Medicamentos emagrecedores'
+    } %}
+    {% for key, label in parq_labels.items() %}
+    <div class="parq-row">
+      <span>{{ label }}</span>
+      {% if lead.parq_answers.get(key) %}
+        <span class="parq-yes">Sim</span>
+      {% else %}
+        <span class="parq-no">Não</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Demo bookings -->
+  {% if demo_bookings %}
+  <div class="section-card">
+    <div class="section-title">Aulas Demonstrativas</div>
+    {% for b in demo_bookings %}
+    <div class="demo-card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <strong>{{ b.slot.modality.name if b.slot and b.slot.modality else '—' }}</strong><br>
+          <span style="font-size:.75rem;color:#6c757d">
+            {{ b.slot.date.strftime('%d/%m/%Y') if b.slot else '—' }}
+            · {{ b.slot.start_time.strftime('%H:%M') if b.slot else '' }}
+            · {{ b.slot.provider.name if b.slot and b.slot.provider else '—' }}
+          </span>
+        </div>
+        <span class="demo-status status-{{ b.status.value }}">{{ b.status.value | upper }}</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

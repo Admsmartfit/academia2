@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% block title %}Aula Agendada!{% endblock %}
+
+{% block extra_css %}
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+body { background: #f8f9fa; }
+.conf-wrap {
+  max-width: 480px; margin: 0 auto;
+  min-height: 100vh; display: flex; flex-direction: column;
+  align-items: center; padding: 40px 20px 60px;
+}
+
+.conf-icon {
+  width: 80px; height: 80px;
+  background: linear-gradient(135deg, #198754, #157347);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2rem;
+  color: #fff;
+  margin-bottom: 20px;
+  box-shadow: 0 8px 24px rgba(25,135,84,.3);
+  animation: popIn .5s cubic-bezier(.4,0,.2,1);
+}
+@keyframes popIn {
+  from { transform: scale(0); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+.conf-title {
+  font-size: 1.4rem; font-weight: 800;
+  color: #212529; text-align: center; margin-bottom: 6px;
+}
+.conf-sub {
+  font-size: .85rem; color: #6c757d;
+  text-align: center; margin-bottom: 28px;
+}
+
+.conf-card {
+  width: 100%;
+  background: #fff;
+  border-radius: 18px;
+  border: 2px solid #c3e6cb;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.conf-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 0; border-bottom: 1px solid #f0f0f0;
+}
+.conf-row:last-child { border-bottom: none; }
+.conf-row-icon {
+  width: 32px; height: 32px;
+  background: #f0fdf4;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  color: #198754; font-size: .85rem;
+  flex-shrink: 0;
+}
+.conf-row-label { font-size: .7rem; color: #6c757d; }
+.conf-row-value { font-size: .88rem; font-weight: 700; color: #212529; margin-top: 1px; }
+
+.conf-what-next {
+  width: 100%;
+  background: #fff8e1;
+  border: 1.5px solid #ffc107;
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
+.conf-what-next h6 {
+  font-size: .8rem; font-weight: 700;
+  color: #856404; margin-bottom: 8px;
+}
+.conf-what-next ul {
+  list-style: none; margin: 0; padding: 0;
+}
+.conf-what-next li {
+  font-size: .78rem; color: #856404;
+  display: flex; gap: 8px; align-items: flex-start;
+  padding: 3px 0;
+}
+.conf-what-next li i { margin-top: 2px; flex-shrink: 0; }
+
+.btn-schedule {
+  width: 100%;
+  background: var(--primary-color);
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  padding: 14px;
+  font-size: .95rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: center;
+  display: block;
+  margin-bottom: 10px;
+}
+.btn-home {
+  width: 100%;
+  background: none;
+  border: 2px solid #dee2e6;
+  color: #6c757d;
+  border-radius: 14px;
+  padding: 12px;
+  font-size: .88rem;
+  font-weight: 600;
+  text-decoration: none;
+  text-align: center;
+  display: block;
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="conf-wrap">
+
+  <div class="conf-icon"><i class="fas fa-check"></i></div>
+  <div class="conf-title">Aula confirmada!</div>
+  <div class="conf-sub">Sua aula demonstrativa gratuita está marcada</div>
+
+  {% if slot %}
+  <div class="conf-card">
+    <div class="conf-row">
+      <div class="conf-row-icon"><i class="fas fa-calendar-day"></i></div>
+      <div>
+        <div class="conf-row-label">Data</div>
+        <div class="conf-row-value">
+          {{ weekday_long[slot.date.weekday()] }}, {{ slot.date.strftime('%d/%m/%Y') }}
+        </div>
+      </div>
+    </div>
+    <div class="conf-row">
+      <div class="conf-row-icon"><i class="fas fa-clock"></i></div>
+      <div>
+        <div class="conf-row-label">Horário</div>
+        <div class="conf-row-value">{{ slot.start_time.strftime('%H:%M') }} – {{ slot.end_time.strftime('%H:%M') }}</div>
+      </div>
+    </div>
+    {% if modality %}
+    <div class="conf-row">
+      <div class="conf-row-icon"><i class="fas fa-dumbbell"></i></div>
+      <div>
+        <div class="conf-row-label">Modalidade</div>
+        <div class="conf-row-value">{{ modality.name }}</div>
+      </div>
+    </div>
+    {% endif %}
+    {% if slot.provider %}
+    <div class="conf-row">
+      <div class="conf-row-icon"><i class="fas fa-user-tie"></i></div>
+      <div>
+        <div class="conf-row-label">Professor</div>
+        <div class="conf-row-value">{{ slot.provider.name }}</div>
+      </div>
+    </div>
+    {% endif %}
+    <div class="conf-row">
+      <div class="conf-row-icon"><i class="fas fa-tag"></i></div>
+      <div>
+        <div class="conf-row-label">Custo</div>
+        <div class="conf-row-value" style="color:#198754">Gratuito 🎉</div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="conf-what-next">
+    <h6><i class="fas fa-info-circle me-1"></i>O que fazer agora?</h6>
+    <ul>
+      <li><i class="fas fa-clock"></i>Chegue 10 minutos antes para se preparar</li>
+      <li><i class="fas fa-tint"></i>Beba bastante água antes da aula</li>
+      <li><i class="fas fa-tshirt"></i>Vista roupas confortáveis e calçado esportivo</li>
+      <li><i class="fas fa-times-circle"></i>Para cancelar, acesse Minhas Reservas</li>
+    </ul>
+  </div>
+
+  <a href="{{ url_for('student.bookings') }}" class="btn-schedule">
+    <i class="fas fa-calendar-check me-1"></i>Ver minhas reservas
+  </a>
+  <a href="{{ url_for('student.schedule') }}" class="btn-home">
+    <i class="fas fa-home me-1"></i>Ir para a grade de aulas
+  </a>
+
+</div>
+{% endblock %}

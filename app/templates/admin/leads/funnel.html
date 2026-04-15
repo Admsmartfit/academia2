@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}Métricas do Funil — Admin{% endblock %}
+
+{% block extra_css %}
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+body { background: #f1f3f5; }
+.admin-topbar {
+  background: #212529; color: #fff;
+  padding: 14px 20px; display: flex; align-items: center; gap: 12px;
+  position: sticky; top: 0; z-index: 200;
+}
+.admin-topbar h1 { font-size: 1rem; font-weight: 700; margin: 0; flex: 1; }
+.admin-topbar a  { color: rgba(255,255,255,.7); text-decoration: none; font-size: .8rem; }
+
+.funnel-body { max-width: 800px; margin: 0 auto; padding: 16px; }
+
+/* KPI grid */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+@media (min-width: 600px) { .kpi-grid { grid-template-columns: repeat(4, 1fr); } }
+.kpi-card {
+  background: #fff;
+  border-radius: 14px;
+  border: 1.5px solid #e9ecef;
+  padding: 14px;
+  text-align: center;
+}
+.kpi-value { font-size: 1.8rem; font-weight: 800; color: #212529; line-height: 1.1; }
+.kpi-label { font-size: .7rem; color: #6c757d; margin-top: 3px; }
+.kpi-pct   { font-size: .75rem; font-weight: 700; color: #198754; margin-top: 4px; }
+
+/* Funnel bar */
+.funnel-bars { background: #fff; border-radius: 14px; border: 1.5px solid #e9ecef; padding: 16px 18px; margin-bottom: 14px; }
+.funnel-bars h6 { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: #6c757d; margin-bottom: 14px; }
+.funnel-bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.fbar-label { font-size: .75rem; color: #495057; width: 110px; flex-shrink: 0; }
+.fbar-wrap  { flex: 1; height: 20px; background: #f0f0f0; border-radius: 10px; overflow: hidden; }
+.fbar-fill  { height: 100%; border-radius: 10px; background: var(--primary-color); transition: width .5s ease; display: flex; align-items: center; justify-content: flex-end; padding-right: 6px; }
+.fbar-fill span { font-size: .62rem; color: #fff; font-weight: 700; white-space: nowrap; }
+.fbar-count { font-size: .75rem; font-weight: 700; color: #212529; width: 30px; text-align: right; flex-shrink: 0; }
+
+/* Ranking */
+.rank-card { background: #fff; border-radius: 14px; border: 1.5px solid #e9ecef; padding: 16px 18px; margin-bottom: 14px; }
+.rank-card h6 { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: #6c757d; margin-bottom: 12px; }
+.rank-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 0; border-bottom: 1px solid #f0f0f0; font-size: .82rem;
+}
+.rank-row:last-child { border-bottom: none; }
+.rank-num { font-size: .7rem; color: #adb5bd; width: 18px; flex-shrink: 0; }
+.rank-name { flex: 1; font-weight: 600; }
+.rank-count { font-size: .75rem; color: var(--primary-color); font-weight: 700; background: #fff3ec; border-radius: 10px; padding: 2px 8px; }
+
+/* Stuck leads */
+.stuck-card { background: #fff8e1; border: 1.5px solid #ffc107; border-radius: 14px; padding: 14px 16px; margin-bottom: 14px; }
+.stuck-card h6 { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: #856404; margin-bottom: 10px; }
+.stuck-row { display: flex; justify-content: space-between; font-size: .8rem; padding: 5px 0; border-bottom: 1px solid rgba(0,0,0,.06); }
+.stuck-row:last-child { border-bottom: none; }
+.stuck-row a { color: #856404; font-weight: 600; text-decoration: none; }
+.stuck-row a:hover { text-decoration: underline; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="admin-topbar">
+  <a href="{{ url_for('admin.leads') }}"><i class="fas fa-arrow-left"></i></a>
+  <h1><i class="fas fa-chart-bar me-2"></i>Métricas do Funil</h1>
+</div>
+
+<div class="funnel-body">
+
+  <!-- KPI cards -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-value">{{ total_quiz }}</div>
+      <div class="kpi-label">Quizzes completados</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value">{{ total_confirmed }}</div>
+      <div class="kpi-label">Demos agendadas</div>
+      <div class="kpi-pct">{{ rate_quiz_demo }}% conversão</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value">{{ total_demo_done }}</div>
+      <div class="kpi-label">Demos realizadas</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value">{{ total_converted }}</div>
+      <div class="kpi-label">Matriculados</div>
+      <div class="kpi-pct">{{ rate_demo_mat }}% conversão</div>
+    </div>
+  </div>
+
+  <!-- Funnel bars -->
+  <div class="funnel-bars">
+    <h6>Distribuição por Etapa</h6>
+    {% set total_all = total_quiz or 1 %}
+    {% for step_key, step_name in funnel_steps %}
+    {% set cnt = step_counts.get(step_key, 0) %}
+    <div class="funnel-bar-row">
+      <div class="fbar-label">{{ step_name }}</div>
+      <div class="fbar-wrap">
+        <div class="fbar-fill" style="width:{{ [cnt / total_all * 100, 4] | max | round }}%">
+          {% if cnt %}<span>{{ cnt }}</span>{% endif %}
+        </div>
+      </div>
+      <div class="fbar-count">{{ cnt }}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+
+    <!-- Top modalities -->
+    <div class="rank-card">
+      <h6>Modalidades mais demandadas</h6>
+      {% for name, cnt in modality_counter %}
+      <div class="rank-row">
+        <span class="rank-num">{{ loop.index }}</span>
+        <span class="rank-name">{{ name }}</span>
+        <span class="rank-count">{{ cnt }}x</span>
+      </div>
+      {% else %}
+      <div style="font-size:.78rem;color:#adb5bd;text-align:center;padding:12px">Nenhuma demo ainda.</div>
+      {% endfor %}
+    </div>
+
+    <!-- Top turnos -->
+    <div class="rank-card">
+      <h6>Turno mais popular</h6>
+      {% for name, cnt in turno_counter %}
+      <div class="rank-row">
+        <span class="rank-num">{{ loop.index }}</span>
+        <span class="rank-name">{{ name }}</span>
+        <span class="rank-count">{{ cnt }}x</span>
+      </div>
+      {% else %}
+      <div style="font-size:.78rem;color:#adb5bd;text-align:center;padding:12px">Nenhuma demo ainda.</div>
+      {% endfor %}
+    </div>
+
+  </div>
+
+  <!-- Stuck leads -->
+  {% if stuck_leads %}
+  <div class="stuck-card">
+    <h6><i class="fas fa-exclamation-triangle me-1"></i>Leads parados há mais de 3 dias ({{ stuck_leads|length }})</h6>
+    {% for lead in stuck_leads[:10] %}
+    <div class="stuck-row">
+      <span>{{ lead.user.name }}</span>
+      <span>
+        <span style="font-size:.7rem;color:#6c757d">{{ dict(funnel_steps).get(lead.onboarding_step, lead.onboarding_step) }}</span>
+        &nbsp;
+        <a href="{{ url_for('admin.lead_detail', lead_id=lead.id) }}">Ver →</a>
+      </span>
+    </div>
+    {% endfor %}
+    {% if stuck_leads|length > 10 %}
+    <div style="font-size:.75rem;color:#856404;text-align:center;margin-top:6px">
+      + {{ stuck_leads|length - 10 }} outros.
+      <a href="{{ url_for('admin.leads') }}" style="color:#856404">Ver todos</a>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

@@ -299,8 +299,62 @@
 {# ── Top bar ──────────────────────────────────────────────────────────── #}
 <div class="sch-topbar">
   <h1><i class="fas fa-calendar-check me-2"></i>Agendar Aula</h1>
-  <a href="{{ url_for('student.bookings') }}"><i class="fas fa-list me-1"></i>Minhas Reservas</a>
+  <div style="display:flex;align-items:center;gap:10px">
+    {% if lead_profile and lead_profile.quiz_completed_at %}
+    <a href="{{ url_for('onboarding.suggestion') }}"
+       style="font-size:.72rem;color:rgba(255,255,255,.85);text-decoration:none;white-space:nowrap">
+      <i class="fas fa-star me-1"></i>Seu treino
+    </a>
+    {% else %}
+    <a href="{{ url_for('onboarding.quiz') }}"
+       style="font-size:.72rem;background:rgba(255,255,255,.2);color:#fff;padding:4px 10px;
+              border-radius:20px;text-decoration:none;white-space:nowrap">
+      <i class="fas fa-magic me-1"></i>Descubra seu treino
+    </a>
+    {% endif %}
+    <a href="{{ url_for('student.bookings') }}"><i class="fas fa-list me-1"></i>Reservas</a>
+  </div>
 </div>
+
+{# ── Onboarding banner (only when no active subscriptions) ────────────── #}
+{% if not active_subs %}
+<div style="background:linear-gradient(135deg,#FF6B35,#e0531d);color:#fff;padding:14px 16px;margin:0;">
+  <div style="display:flex;align-items:center;gap:12px;max-width:600px;margin:0 auto">
+    <i class="fas fa-gift" style="font-size:1.5rem;flex-shrink:0;opacity:.9"></i>
+    <div style="flex:1">
+      <div style="font-weight:700;font-size:.9rem">Ainda não é aluno?</div>
+      <div style="font-size:.78rem;opacity:.9">Responda 5 perguntas e ganhe uma aula <strong>GRÁTIS</strong> de Musculação ou EZBody!</div>
+    </div>
+    <a href="{{ url_for('onboarding.quiz') }}"
+       style="background:#fff;color:#FF6B35;border-radius:20px;padding:7px 14px;
+              font-size:.78rem;font-weight:700;text-decoration:none;flex-shrink:0;white-space:nowrap">
+      Quero! →
+    </a>
+  </div>
+</div>
+{% elif lead_profile and lead_profile.modalities_suggested and lead_profile.onboarding_step not in ('converted',) %}
+{# Mini-card for users who completed quiz but not yet converted #}
+<div style="background:#fff3ec;border-bottom:2px solid #ffccb3;padding:10px 16px;">
+  <div style="display:flex;align-items:center;gap:10px;max-width:600px;margin:0 auto;font-size:.8rem">
+    <i class="fas fa-star" style="color:#FF6B35;flex-shrink:0"></i>
+    <div style="flex:1">
+      <strong>Seu treino ideal:</strong>
+      {{ lead_profile.modalities_suggested | join(', ') }}
+    </div>
+    {% if lead_profile.onboarding_step in ('demo_realizada',) %}
+    <a href="{{ url_for('onboarding.convert') }}"
+       style="color:#FF6B35;font-weight:700;text-decoration:none;white-space:nowrap;font-size:.75rem">
+      Matricule-se →
+    </a>
+    {% else %}
+    <a href="{{ url_for('onboarding.suggestion') }}"
+       style="color:#FF6B35;font-weight:700;text-decoration:none;white-space:nowrap;font-size:.75rem">
+      Agendar demo →
+    </a>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
 
 {# ── Filter + view toggle ─────────────────────────────────────────────── #}
 <div class="filter-bar">
@@ -315,6 +369,13 @@
     {% for m in modalities %}
     <option value="{{ m.id }}" {% if modality_id == m.id %}selected{% endif %}>{{ m.name }}</option>
     {% endfor %}
+  </select>
+  <select id="sel-turno" onchange="onFilterChange()">
+    <option value="" {% if not turno %}selected{% endif %}>Turno</option>
+    <option value="manha" {% if turno == 'manha' %}selected{% endif %}>🌅 Manhã (06–12h)</option>
+    <option value="tarde" {% if turno == 'tarde' %}selected{% endif %}>☀️ Tarde (12–18h)</option>
+    <option value="noite" {% if turno == 'noite' %}selected{% endif %}>🌙 Noite (18–22h)</option>
+    <option value="fds"   {% if turno == 'fds'   %}selected{% endif %}>🎉 Fim de semana</option>
   </select>
   <div class="view-toggle">
     <button class="view-btn active" id="btn-cal-view" onclick="setViewMode('calendar')">
@@ -511,8 +572,10 @@ async function fetchSummary(year, month) {
   const params = new URLSearchParams({ start_date: startDate, end_date: endDate });
   const pid = document.getElementById('sel-provider').value;
   const mid = document.getElementById('sel-modality').value;
+  const tid = document.getElementById('sel-turno') ? document.getElementById('sel-turno').value : '';
   if (pid) params.append('provider_id', pid);
   if (mid) params.append('modality_id', mid);
+  if (tid) params.append('turno', tid);
 
   try {
     const res  = await fetch(APP.urls.summary + '?' + params);
@@ -614,8 +677,10 @@ async function loadSlots(dateStr) {
   const params = new URLSearchParams({ date: dateStr });
   const pid = document.getElementById('sel-provider').value;
   const mid = document.getElementById('sel-modality').value;
+  const tid = document.getElementById('sel-turno') ? document.getElementById('sel-turno').value : '';
   if (pid) params.append('provider_id', pid);
   if (mid) params.append('modality_id', mid);
+  if (tid) params.append('turno', tid);
 
   try {
     const res  = await fetch(APP.urls.slots + '?' + params);
@@ -650,8 +715,10 @@ async function loadWeekView() {
   const params = new URLSearchParams({ start_date: startDate, end_date: endDate });
   const pid = document.getElementById('sel-provider').value;
   const mid = document.getElementById('sel-modality').value;
+  const tid = document.getElementById('sel-turno') ? document.getElementById('sel-turno').value : '';
   if (pid) params.append('provider_id', pid);
   if (mid) params.append('modality_id', mid);
+  if (tid) params.append('turno', tid);
 
   try {
     const res  = await fetch(APP.urls.slots + '?' + params);
