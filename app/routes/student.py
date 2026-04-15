@@ -18,6 +18,7 @@ Rotas AJAX / JSON:
 
 from __future__ import annotations
 
+from collections import defaultdict
 from datetime import date, datetime, timedelta, time
 from functools import wraps
 from typing import Optional
@@ -233,13 +234,31 @@ def schedule():
 # ---------------------------------------------------------------------------
 
 
-@student_bp.route("/api/slots")
+@student_bp.route("/api/availability/summary")
 @_require_student
-def api_slots():
+def api_availability_summary():
+    """
+    Retorna resumo leve de disponibilidade por dia — alimenta os indicadores
+    (bolinhas coloridas) do calendário sem carregar o payload completo dos slots.
+
+    Query params: start_date, end_date, provider_id, modality_id
+    Retorno: { "YYYY-MM-DD": { "status": "available|few|full", "spots": N } }
+    """
     today = date.today()
-    raw_date = request.args.get("date", today.isoformat())
+
+    raw_start = request.args.get("start_date", today.replace(day=1).isoformat())
+    raw_end   = request.args.get("end_date")
+
     try:
-        selected_date = _parse_date(raw_date)
+        start = _parse_date(raw_start)
+        if raw_end:
+            end = _parse_date(raw_end)
+        else:
+            # Fim do mês corrente
+            if start.month == 12:
+                end = start.replace(year=start.year + 1, month=1, day=1) - timedelta(days=1)
+            else:
+                end = start.replace(month=start.month + 1, day=1) - timedelta(days=1)
     except ValueError:
         return jsonify({"error": "Data inválida."}), 400
 
@@ -249,10 +268,67 @@ def api_slots():
     q = (
         ScheduleSlot.query
         .filter(
-            ScheduleSlot.date == selected_date,
+            ScheduleSlot.date >= max(start, today),
+            ScheduleSlot.date <= end,
             ScheduleSlot.status.in_(["active", "full"]),
         )
-        .order_by(ScheduleSlot.start_time)
+    )
+    if provider_id:
+        q = q.filter(ScheduleSlot.provider_id == provider_id)
+    if modality_id:
+        q = q.filter(ScheduleSlot.modality_id == modality_id)
+
+    from collections import defaultdict
+    day_data: dict = defaultdict(lambda: {"spots": 0, "capacity": 0})
+    for s in q.all():
+        key = s.date.isoformat()
+        day_data[key]["spots"]    += s.available_spots
+        day_data[key]["capacity"] += s.max_capacity
+
+    result = {}
+    for key, d in day_data.items():
+        spots    = d["spots"]
+        capacity = d["capacity"]
+        if spots <= 0:
+            status = "full"
+        elif spots <= 3 or (capacity > 0 and spots / capacity <= 0.2):
+            status = "few"
+        else:
+            status = "available"
+        result[key] = {"status": status, "spots": spots}
+
+    return jsonify(result)
+
+
+@student_bp.route("/api/slots")
+@_require_student
+def api_slots():
+    """
+    Aceita:
+      - ?date=YYYY-MM-DD          → retorna slots de um único dia
+      - ?start_date=...&end_date= → retorna slots agrupados por dia (visão lista)
+    """
+    today = date.today()
+    provider_id = request.args.get("provider_id", type=int)
+    modality_id = request.args.get("modality_id", type=int)
+
+    raw_start = request.args.get("start_date") or request.args.get("date")
+    raw_end   = request.args.get("end_date")
+
+    try:
+        start_date = _parse_date(raw_start) if raw_start else today
+        end_date   = _parse_date(raw_end)   if raw_end   else start_date
+    except ValueError:
+        return jsonify({"error": "Data inválida."}), 400
+
+    q = (
+        ScheduleSlot.query
+        .filter(
+            ScheduleSlot.date >= start_date,
+            ScheduleSlot.date <= end_date,
+            ScheduleSlot.status.in_(["active", "full"]),
+        )
+        .order_by(ScheduleSlot.date, ScheduleSlot.start_time)
     )
     if provider_id:
         q = q.filter(ScheduleSlot.provider_id == provider_id)
@@ -263,21 +339,39 @@ def api_slots():
 
     booked_slot_ids = {
         b.slot_id
-        for b in (
-            Booking.query.join(ScheduleSlot)
-            .filter(
-                Booking.client_id == current_user.id,
-                Booking.status == BookingStatus.CONFIRMED,
-                ScheduleSlot.date == selected_date,
-            )
-            .all()
-        )
-    }
+        for b in Booking.query.filter_by(
+            client_id=current_user.id,
+            status=BookingStatus.CONFIRMED,
+        ).filter(
+            Booking.slot_id.in_([s.id for s in slots])
+        ).all()
+    } if slots else set()
+
+    if start_date == end_date:
+        return jsonify({
+            "date":    start_date.isoformat(),
+            "weekday": _WEEKDAY_BR_LONG[start_date.weekday()],
+            "slots":   [_slot_to_dict(s, booked_slot_ids) for s in slots],
+        })
+
+    # Range — group by day
+    from collections import defaultdict
+    grouped: dict = defaultdict(list)
+    for s in slots:
+        grouped[s.date.isoformat()].append(_slot_to_dict(s, booked_slot_ids))
 
     return jsonify({
-        "date": selected_date.isoformat(),
-        "weekday": _WEEKDAY_BR_LONG[selected_date.weekday()],
-        "slots": [_slot_to_dict(s, booked_slot_ids) for s in slots],
+        "start_date": start_date.isoformat(),
+        "end_date":   end_date.isoformat(),
+        "days": {
+            ds: {
+                "date":    ds,
+                "weekday": _WEEKDAY_BR_LONG[date.fromisoformat(ds).weekday()],
+                "day_num": date.fromisoformat(ds).day,
+                "slots":   sl,
+            }
+            for ds, sl in sorted(grouped.items())
+        },
     })
 
 
@@ -584,6 +678,22 @@ def bookings():
 
     cancel_info = {b.id: _can_cancel(b) for b in upcoming}
 
+    # Serialized for the calendar view (keyed by ISO date)
+    bookings_cal: dict = defaultdict(list)
+    for b in upcoming:
+        can_c, dh = cancel_info[b.id]
+        bookings_cal[b.slot.date.isoformat()].append({
+            "id":             b.id,
+            "start_time":     b.slot.start_time.strftime("%H:%M"),
+            "end_time":       b.slot.end_time.strftime("%H:%M"),
+            "modality":       b.slot.modality.name  if b.slot.modality  else "—",
+            "modality_color": b.slot.modality.color if b.slot.modality  else "#adb5bd",
+            "provider":       b.slot.provider.name  if b.slot.provider  else "—",
+            "recurring":      b.recurring_id is not None,
+            "can_cancel":     can_c,
+            "deadline_h":     dh,
+        })
+
     return render_template(
         "student/bookings.html",
         upcoming=upcoming,
@@ -592,6 +702,7 @@ def bookings():
         today=today,
         weekday_long=_WEEKDAY_BR_LONG,
         weekday_short=_WEEKDAY_BR_SHORT,
+        bookings_cal=dict(bookings_cal),
     )
 
 

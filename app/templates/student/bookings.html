@@ -228,6 +228,96 @@
 .reason-option.selected { border-color: var(--primary-color); background: #fff8f5; }
 .reason-option input { accent-color: var(--primary-color); }
 
+/* ── Calendar view ── */
+.cal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 0 6px;
+}
+.cal-title-bk { font-weight: 700; font-size: .95rem; }
+.cal-nav-bk {
+  background: none; border: none; color: #6c757d;
+  font-size: 1rem; cursor: pointer; padding: 4px 8px; border-radius: 8px;
+}
+.cal-nav-bk:hover { background: #f0f0f0; }
+.cal-view-toggle {
+  display: flex; gap: 4px; background: #f0f0f0; border-radius: 8px; padding: 3px;
+}
+.cal-view-btn {
+  border: none; background: transparent; border-radius: 6px;
+  padding: 4px 10px; font-size: .72rem; font-weight: 600; color: #6c757d; cursor: pointer;
+}
+.cal-view-btn.active { background: #fff; color: var(--primary-color); box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+
+.cal-grid-bk {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  gap: 2px; text-align: center;
+}
+.cal-dow {
+  font-size: .62rem; color: #adb5bd; font-weight: 600;
+  text-transform: uppercase; padding: 4px 0;
+}
+.cal-cell-bk {
+  aspect-ratio: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  border-radius: 50%; cursor: default;
+  font-size: .82rem; position: relative;
+  transition: background .12s;
+}
+.cal-cell-bk.clickable { cursor: pointer; }
+.cal-cell-bk.clickable:hover { background: #f8f9fa; }
+.cal-cell-bk.has-booking {
+  background: #fff3ec; color: var(--primary-color); font-weight: 700;
+}
+.cal-cell-bk.has-booking:hover { background: #ffe0cf; }
+.cal-cell-bk.cal-today-bk {
+  outline: 2px solid var(--primary-color); outline-offset: -2px;
+}
+.cal-cell-bk.cal-selected-bk {
+  background: var(--primary-color); color: #fff; font-weight: 700;
+}
+.cal-cell-bk.cal-selected-bk:hover { background: #e0531d; }
+.cal-cell-bk.cal-past-bk { color: #ced4da; }
+.cal-booking-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--primary-color);
+  position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%);
+}
+.cal-cell-bk.cal-selected-bk .cal-booking-dot { background: rgba(255,255,255,.8); }
+
+.cal-day-detail {
+  margin-top: 12px; border-top: 1.5px solid #f0f0f0; padding-top: 10px;
+}
+.cal-day-detail-label {
+  font-size: .78rem; font-weight: 600; color: #6c757d; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 6px;
+}
+.cal-empty-day { font-size: .8rem; color: #adb5bd; padding: 16px 0; text-align: center; }
+
+/* Week strip (in calendar view) */
+.week-strip-bk {
+  display: flex; gap: 4px; padding: 4px 0 8px;
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+}
+.week-pill-bk {
+  display: flex; flex-direction: column; align-items: center;
+  min-width: 40px; padding: 6px 4px;
+  border-radius: 12px; cursor: default;
+  font-size: .72rem; border: 1.5px solid transparent;
+}
+.week-pill-bk.clickable { cursor: pointer; }
+.week-pill-bk.clickable:hover { background: #f0f0f0; }
+.week-pill-bk.has-booking {
+  border-color: #ffccb3; background: #fff3ec;
+}
+.week-pill-bk.cal-selected-bk {
+  background: var(--primary-color); color: #fff; border-color: transparent;
+}
+.wp-bk-day  { font-size: .6rem; color: #adb5bd; text-transform: uppercase; }
+.wp-bk-num  { font-size: .9rem; font-weight: 700; line-height: 1.2; }
+.week-pill-bk.cal-selected-bk .wp-bk-day { color: rgba(255,255,255,.8); }
+.week-pill-bk.cal-today-bk { outline: 2px solid var(--primary-color); outline-offset: -2px; border-radius: 12px; }
+.week-pill-bk.cal-past-bk  { opacity: .4; }
+
 @media (min-width: 576px) {
   .tab-panel { max-width: 540px; margin: 0 auto; }
   .bottom-nav { max-width: 540px; left: 50%; transform: translateX(-50%); border-radius: 12px 12px 0 0; }
@@ -251,6 +341,9 @@
   <button class="tab-btn active" onclick="switchTab('upcoming', this)">
     <i class="fas fa-clock me-1"></i>Próximas
     {% if upcoming %}<span class="badge bg-primary ms-1" style="font-size:.6rem;">{{ upcoming|length }}</span>{% endif %}
+  </button>
+  <button class="tab-btn" onclick="switchTab('calendar', this)">
+    <i class="fas fa-calendar-alt me-1"></i>Calendário
   </button>
   <button class="tab-btn" onclick="switchTab('recurring', this)">
     <i class="fas fa-sync-alt me-1"></i>Recorrentes
@@ -339,6 +432,28 @@
       </a>
     </div>
   {% endif %}
+</div>
+
+{# ──────────────────────────
+   PANEL: Calendário
+────────────────────────── #}
+<div class="tab-panel" id="panel-calendar">
+  <div class="cal-header">
+    <div style="display:flex;align-items:center;gap:6px;">
+      <button class="cal-nav-bk" onclick="navCalBk(-1)"><i class="fas fa-chevron-left"></i></button>
+      <span class="cal-title-bk" id="cal-title-bk"></span>
+      <button class="cal-nav-bk" onclick="navCalBk(1)"><i class="fas fa-chevron-right"></i></button>
+    </div>
+    <div class="cal-view-toggle">
+      <button class="cal-view-btn active" id="btn-bk-month" onclick="setCalViewBk('month', this)">Mês</button>
+      <button class="cal-view-btn"        id="btn-bk-week"  onclick="setCalViewBk('week',  this)">Semana</button>
+    </div>
+  </div>
+  <div id="cal-grid-bk-wrap"></div>
+  <div class="cal-day-detail" id="cal-day-detail" style="display:none">
+    <div class="cal-day-detail-label" id="cal-day-detail-label"></div>
+    <div id="cal-day-detail-cards"></div>
+  </div>
 </div>
 
 {# ──────────────────────────
@@ -443,13 +558,7 @@
 let pendingCancelId  = null;
 let selectedReason   = 'Compromisso pessoal';
 
-/* ── Tabs ── */
-function switchTab(name, btn) {
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('panel-' + name)?.classList.add('active');
-}
+
 
 /* ── Cancel flow ── */
 function openCancelModal(bookingId, dateLabel, timeLabel) {
@@ -534,6 +643,199 @@ function stopRecurring(recId, btn) {
     btn.disabled = false;
     showToast('Erro ao parar recorrência.', 'danger');
   });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CALENDAR VIEW
+══════════════════════════════════════════════════════════════ */
+const BOOKINGS_BY_DATE = {{ bookings_cal | tojson }};
+const BK_TODAY = '{{ today.isoformat() }}';
+const BK_MONTH_NAMES  = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+                          'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const BK_WDAY_LONG    = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'];
+const BK_WDAY_SHORT   = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+let bkCalYear    = new Date().getFullYear();
+let bkCalMonth   = new Date().getMonth();
+let bkCalView    = 'month';   // 'month' | 'week'
+let bkSelDate    = null;
+
+function setCalViewBk(mode, btn) {
+  bkCalView = mode;
+  document.querySelectorAll('.cal-view-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderCalBk();
+}
+
+function navCalBk(delta) {
+  if (bkCalView === 'month') {
+    bkCalMonth += delta;
+    if (bkCalMonth < 0)  { bkCalMonth = 11; bkCalYear--; }
+    if (bkCalMonth > 11) { bkCalMonth = 0;  bkCalYear++; }
+  } else {
+    // advance/back 7 days from the anchor date
+    const anchor = bkSelDate || BK_TODAY;
+    const d = new Date(anchor + 'T00:00:00');
+    d.setDate(d.getDate() + delta * 7);
+    bkSelDate = d.toISOString().slice(0, 10);
+    bkCalYear  = d.getFullYear();
+    bkCalMonth = d.getMonth();
+  }
+  renderCalBk();
+}
+
+function renderCalBk() {
+  if (bkCalView === 'month') renderMonthBk();
+  else                       renderWeekBk();
+}
+
+function renderMonthBk() {
+  const title = document.getElementById('cal-title-bk');
+  title.textContent = BK_MONTH_NAMES[bkCalMonth] + ' ' + bkCalYear;
+
+  const wrap = document.getElementById('cal-grid-bk-wrap');
+  const firstDay   = new Date(bkCalYear, bkCalMonth, 1).getDay();
+  const daysInMonth = new Date(bkCalYear, bkCalMonth + 1, 0).getDate();
+
+  let html = '<div class="cal-grid-bk">';
+  // Day-of-week headers (Sun … Sat)
+  for (const d of BK_WDAY_SHORT) html += `<div class="cal-dow">${d}</div>`;
+  // Empty cells
+  for (let i = 0; i < firstDay; i++) html += '<div></div>';
+  // Day cells
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds = bkCalYear + '-' + String(bkCalMonth + 1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+    const hasBk  = !!BOOKINGS_BY_DATE[ds];
+    const isToday = ds === BK_TODAY;
+    const isSel   = ds === bkSelDate;
+    const isPast  = ds < BK_TODAY;
+    let cls = 'cal-cell-bk';
+    if (isPast)    cls += ' cal-past-bk';
+    if (isToday)   cls += ' cal-today-bk';
+    if (isSel)     cls += ' cal-selected-bk';
+    if (hasBk)     cls += ' has-booking';
+    if (hasBk || isToday) cls += ' clickable';
+    const dot  = hasBk ? '<div class="cal-booking-dot"></div>' : '';
+    const click = (hasBk || !isPast) ? `onclick="selectDayBk('${ds}')"` : '';
+    html += `<div class="${cls}" ${click}>${d}${dot}</div>`;
+  }
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+
+function renderWeekBk() {
+  const anchor = bkSelDate || BK_TODAY;
+  const anchorD = new Date(anchor + 'T00:00:00');
+  const dow = anchorD.getDay();
+  const monday = new Date(anchorD);
+  monday.setDate(anchorD.getDate() - (dow === 0 ? 6 : dow - 1));
+
+  const start = monday.toISOString().slice(0, 10);
+  const endD  = new Date(monday); endD.setDate(monday.getDate() + 6);
+  const end   = endD.toISOString().slice(0, 10);
+
+  const title = document.getElementById('cal-title-bk');
+  title.textContent = `${start.slice(8)}/${start.slice(5,7)} – ${end.slice(8)}/${end.slice(5,7)}`;
+
+  let html = '<div class="week-strip-bk">';
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday); d.setDate(monday.getDate() + i);
+    const ds  = d.toISOString().slice(0, 10);
+    const hasBk  = !!BOOKINGS_BY_DATE[ds];
+    const isToday = ds === BK_TODAY;
+    const isSel   = ds === bkSelDate;
+    const isPast  = ds < BK_TODAY;
+    let cls = 'week-pill-bk';
+    if (isPast)    cls += ' cal-past-bk';
+    if (isToday)   cls += ' cal-today-bk';
+    if (isSel)     cls += ' cal-selected-bk';
+    if (hasBk)     cls += ' has-booking';
+    if (!isPast || hasBk) cls += ' clickable';
+    const dayName = BK_WDAY_SHORT[(d.getDay() + 6) % 7 + 1] || BK_WDAY_SHORT[0];
+    // Mon=1..Sun=0 → index: getDay() 1=Mon→0, 0=Sun→6
+    const wIdx = (d.getDay() + 6) % 7;
+    const shortName = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'][wIdx];
+    html += `<div class="${cls}" onclick="selectDayBk('${ds}')">
+      <span class="wp-bk-day">${shortName}</span>
+      <span class="wp-bk-num">${d.getDate()}</span>
+    </div>`;
+  }
+  html += '</div>';
+  document.getElementById('cal-grid-bk-wrap').innerHTML = html;
+}
+
+function selectDayBk(ds) {
+  bkSelDate = ds;
+  const d = new Date(ds + 'T00:00:00');
+  bkCalYear  = d.getFullYear();
+  bkCalMonth = d.getMonth();
+  renderCalBk();
+
+  const detail = document.getElementById('cal-day-detail');
+  const label  = document.getElementById('cal-day-detail-label');
+  const cards  = document.getElementById('cal-day-detail-cards');
+  detail.style.display = '';
+
+  const wday  = BK_WDAY_LONG[(d.getDay() + 6) % 7];
+  const dNum  = d.getDate();
+  const mName = BK_MONTH_NAMES[d.getMonth()];
+  label.innerHTML = `<i class="fas fa-calendar-day me-1" style="color:var(--primary-color)"></i>
+    ${wday}, <strong>${dNum} de ${mName}</strong>`;
+
+  const dayBks = BOOKINGS_BY_DATE[ds] || [];
+  if (!dayBks.length) {
+    cards.innerHTML = '<div class="cal-empty-day"><i class="fas fa-calendar-times me-1"></i>Nenhuma reserva neste dia.</div>';
+    return;
+  }
+  cards.innerHTML = dayBks.map(b => {
+    const recurBadge = b.recurring
+      ? '<span class="badge bg-info" style="font-size:.6rem;">Recorrente</span>' : '';
+    const cancelBtn  = b.can_cancel
+      ? `<button class="btn-cancel-bk" onclick="openCancelModal(${b.id}, '${ds.slice(8)}/${ds.slice(5,7)}', '${b.start_time}')">
+           <i class="fas fa-times me-1"></i>Cancelar
+         </button>`
+      : `<span class="cancel-locked"><i class="fas fa-lock"></i> Bloqueado</span>`;
+    return `<div class="bk-card future" style="margin:6px 0;">
+      <div class="d-flex gap-3 align-items-center">
+        <div class="bk-info">
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span class="bk-time">${b.start_time} – ${b.end_time}</span>
+            ${recurBadge}
+          </div>
+          <div class="bk-meta mt-1">
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;
+              background:${b.modality_color};margin-right:4px;"></span>
+            ${b.modality} &nbsp;·&nbsp;
+            <i class="fas fa-user-tie opacity-50 me-1"></i>${b.provider}
+          </div>
+        </div>
+        <div style="flex-shrink:0">${cancelBtn}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+/* ── Tabs (includes calendar init) ── */
+let bkCalInited = false;
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('panel-' + name)?.classList.add('active');
+  if (name === 'calendar' && !bkCalInited) {
+    bkCalInited = true;
+    renderCalBk();
+    // Auto-select today if it has bookings, else first booking date
+    if (BOOKINGS_BY_DATE[BK_TODAY]) {
+      selectDayBk(BK_TODAY);
+    } else {
+      const firstDate = Object.keys(BOOKINGS_BY_DATE).sort()[0];
+      if (firstDate) selectDayBk(firstDate);
+    }
+  }
 }
 
 /* ── Toast ── */
