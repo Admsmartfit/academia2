@@ -8,6 +8,11 @@ Rotas HTML:
     GET  /admin/leads/<id>              → Perfil completo do lead
     POST /admin/leads/create            → Criar lead manual
     POST /admin/leads/<id>/convert      → Marcar como convertido
+
+    GET  /admin/users                   → Lista de usuários com filtros
+    POST /admin/users/create            → Criar usuário (instrutor/admin)
+    POST /admin/users/<id>/reset        → Redefinir senha
+    POST /admin/users/<id>/toggle       → Ativar/desativar usuário
 """
 
 from __future__ import annotations
@@ -15,16 +20,14 @@ from __future__ import annotations
 from collections import Counter
 from datetime import datetime
 
-from flask import (Blueprint, flash, jsonify, redirect, render_template,
+from flask import (Blueprint, flash, redirect, render_template,
                    request, url_for)
-from flask_login import current_user, login_required
+from flask_login import current_user
 from functools import wraps
-from werkzeug.security import generate_password_hash
 
 from app import db
-from app.models.booking import Booking, BookingStatus
+from app.models.booking import Booking
 from app.models.lead_profile import LeadProfile
-from app.models.modality import Modality
 from app.models.schedule_slot import ScheduleSlot
 from app.models.user import User
 
@@ -263,3 +266,119 @@ def lead_convert(lead_id: int):
     db.session.commit()
     flash("Lead marcado como convertido.", "success")
     return redirect(url_for("admin.lead_detail", lead_id=lead_id))
+
+
+# ---------------------------------------------------------------------------
+# GET /admin/users
+# ---------------------------------------------------------------------------
+
+@admin_bp.route("/users")
+@_require_admin
+def users():
+    role_filter   = request.args.get("role", "")
+    status_filter = request.args.get("status", "")
+    q_search      = request.args.get("q", "").strip()
+
+    query = User.query.order_by(User.created_at.desc())
+    if role_filter:
+        query = query.filter(User.role == role_filter)
+    if status_filter == "active":
+        query = query.filter(User.is_active == True)
+    elif status_filter == "inactive":
+        query = query.filter(User.is_active == False)
+    if q_search:
+        like = f"%{q_search}%"
+        query = query.filter(
+            db.or_(User.name.ilike(like), User.email.ilike(like), User.phone.ilike(like))
+        )
+
+    all_users = query.all()
+
+    role_counts = Counter(u.role for u in User.query.all())
+
+    return render_template(
+        "admin/users.html",
+        users=all_users,
+        role_filter=role_filter,
+        status_filter=status_filter,
+        q_search=q_search,
+        role_counts=role_counts,
+    )
+
+
+# ---------------------------------------------------------------------------
+# POST /admin/users/create
+# ---------------------------------------------------------------------------
+
+@admin_bp.route("/users/create", methods=["POST"])
+@_require_admin
+def user_create():
+    name     = request.form.get("name", "").strip()
+    email    = request.form.get("email", "").strip().lower()
+    phone    = request.form.get("phone", "").strip()
+    role     = request.form.get("role", "student")
+    password = request.form.get("password", "").strip()
+
+    if not name or not email or not phone or not password:
+        flash("Todos os campos são obrigatórios.", "danger")
+        return redirect(url_for("admin.users"))
+
+    if role not in ("student", "instructor", "admin"):
+        flash("Papel inválido.", "danger")
+        return redirect(url_for("admin.users"))
+
+    if User.query.filter_by(email=email).first():
+        flash("Já existe um usuário com este e-mail.", "warning")
+        return redirect(url_for("admin.users"))
+
+    user = User(
+        name=name,
+        email=email,
+        phone=phone,
+        role=role,
+        is_active=True,
+    )
+    user.set_password(password)
+    db.session.add(user)
+    db.session.commit()
+
+    flash(f"Usuário {name} criado com sucesso.", "success")
+    return redirect(url_for("admin.users"))
+
+
+# ---------------------------------------------------------------------------
+# POST /admin/users/<id>/reset
+# ---------------------------------------------------------------------------
+
+@admin_bp.route("/users/<int:user_id>/reset", methods=["POST"])
+@_require_admin
+def user_reset_password(user_id: int):
+    user     = User.query.get_or_404(user_id)
+    password = request.form.get("password", "").strip()
+
+    if not password or len(password) < 6:
+        flash("A senha deve ter pelo menos 6 caracteres.", "danger")
+        return redirect(url_for("admin.users"))
+
+    user.set_password(password)
+    db.session.commit()
+    flash(f"Senha de {user.name} redefinida com sucesso.", "success")
+    return redirect(url_for("admin.users"))
+
+
+# ---------------------------------------------------------------------------
+# POST /admin/users/<id>/toggle
+# ---------------------------------------------------------------------------
+
+@admin_bp.route("/users/<int:user_id>/toggle", methods=["POST"])
+@_require_admin
+def user_toggle(user_id: int):
+    user = User.query.get_or_404(user_id)
+    if user.id == current_user.id:
+        flash("Você não pode desativar sua própria conta.", "warning")
+        return redirect(url_for("admin.users"))
+    user.is_active = not user.is_active
+    db.session.commit()
+    status = "ativado" if user.is_active else "desativado"
+    flash(f"Usuário {user.name} {status}.", "success")
+    return redirect(url_for("admin.users"))

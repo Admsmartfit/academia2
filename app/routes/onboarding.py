@@ -11,6 +11,8 @@ Rotas HTML:
     GET  /onboarding/book-demo/<int:modality_id>   → Grade de horários demo
     GET  /onboarding/confirmed                     → Confirmação pós-agendamento
     GET  /onboarding/convert                       → Conversão pós-demo
+    GET  /onboarding/set-password                  → Define senha após checkout
+    POST /onboarding/set-password                  → Salva senha e faz login
 
 Rotas AJAX:
     POST /onboarding/book-demo/<int:modality_id>/confirm   → Confirma reserva demo
@@ -24,8 +26,8 @@ from datetime import date, datetime, timedelta
 from functools import wraps
 
 from flask import (Blueprint, flash, jsonify, redirect, render_template,
-                   request, session, url_for)
-from flask_login import current_user, login_required
+                   request, url_for)
+from flask_login import current_user, login_user
 
 from app import db
 from app.models.booking import Booking, BookingStatus
@@ -485,7 +487,6 @@ def convert():
 @onboarding_bp.route("/convert/select", methods=["POST"])
 @_require_login
 def convert_select():
-    plan_key = request.form.get("plan", "")
     lead = LeadProfile.query.filter_by(user_id=current_user.id).first()
     if lead:
         lead.onboarding_step = "converted"
@@ -555,3 +556,70 @@ def _build_plan_suggestions(lead: LeadProfile | None) -> list[dict]:
         })
 
     return plans
+
+
+# ---------------------------------------------------------------------------
+# GET/POST /onboarding/set-password
+# ---------------------------------------------------------------------------
+
+@onboarding_bp.route("/set-password", methods=["GET", "POST"])
+def set_password():
+    """
+    Frictionless onboarding: the user was created with a random password
+    during checkout (or by the admin). This page lets them choose their
+    own password and get auto-logged in.
+
+    Expects ?token=<email_b64> in the query string (GET) or a hidden field
+    on POST.  Falls back to current_user if already authenticated.
+    """
+    import base64
+
+    # Resolve the user either from token or current session
+    token = request.args.get("token") or request.form.get("token", "")
+    user = None
+
+    if token:
+        try:
+            email = base64.urlsafe_b64decode(token.encode()).decode()
+            user  = User.query.filter_by(email=email).first()
+        except Exception:
+            pass
+
+    if user is None and current_user.is_authenticated:
+        user = current_user
+
+    if user is None:
+        flash("Link inválido ou expirado. Faça login para continuar.", "warning")
+        return redirect(url_for("auth.login"))
+
+    if request.method == "POST":
+        password = request.form.get("password", "").strip()
+        confirm  = request.form.get("confirm", "").strip()
+
+        if len(password) < 6:
+            flash("A senha deve ter pelo menos 6 caracteres.", "danger")
+            return render_template("onboarding/set_password.html", token=token, user=user)
+
+        if password != confirm:
+            flash("As senhas não coincidem.", "danger")
+            return render_template("onboarding/set_password.html", token=token, user=user)
+
+        user.set_password(password)
+        db.session.commit()
+
+        login_user(user)
+        flash("Senha definida com sucesso! Bem-vindo(a).", "success")
+
+        # Redirect based on role
+        if user.role == "admin":
+            return redirect(url_for("admin.leads"))
+        if user.is_instructor:
+            return redirect(url_for("provider.dashboard"))
+
+        # Check if onboarding is pending
+        lead = LeadProfile.query.filter_by(user_id=user.id).first()
+        if lead and lead.onboarding_step not in ("converted",):
+            return redirect(url_for("onboarding.quiz"))
+        return redirect(url_for("student.schedule"))
+
+    return render_template("onboarding/set_password.html", token=token, user=user)

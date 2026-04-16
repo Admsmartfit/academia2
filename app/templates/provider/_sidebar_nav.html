@@ -14,6 +14,18 @@
      class="nav-link {{ 'active' if request.endpoint == 'provider.templates_list' }}">
     <i class="fas fa-layer-group"></i> Templates
   </a>
+
+  {% if current_user.role == 'admin' %}
+  <span class="sidebar-section mt-2">Administração</span>
+  <a href="{{ url_for('admin.leads') }}"
+     class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('admin.lead') }}">
+    <i class="fas fa-funnel-dollar"></i> Funil de Leads
+  </a>
+  <a href="{{ url_for('admin.users') }}"
+     class="nav-link {{ 'active' if request.endpoint == 'admin.users' }}">
+    <i class="fas fa-users-cog"></i> Usuários
+  </a>
+  {% endif %}
 </div>
 
 <div class="sidebar-footer">

@@ -57,7 +57,8 @@ def create_app(config_override: dict | None = None) -> Flask:
             if current_user.is_instructor:
                 return redirect(url_for("provider.dashboard"))
             return redirect(url_for("student.schedule"))
-        return redirect(url_for("auth.login"))
+        from flask import render_template as _rt
+        return _rt("public/landing_page.html")
 
     # --- Blueprints ------------------------------------------------------
     from app.routes.auth import auth_bp

@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Academia — Comece sua transformação hoje</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --primary: #FF6B35;
+    --primary-dark: #e0531d;
+    --dark: #212529;
+    --text: #495057;
+    --muted: #6c757d;
+    --light: #f8f9fa;
+    --white: #fff;
+    --border: #e9ecef;
+  }
+
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--dark); }
+
+  /* ── Topbar ── */
+  .topbar {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(255,255,255,.96); backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px;
+  }
+  .topbar-logo {
+    font-size: 1.2rem; font-weight: 900; color: var(--primary); text-decoration: none;
+    letter-spacing: -.5px;
+  }
+  .topbar-logo span { color: var(--dark); }
+  .topbar-actions { display: flex; gap: 10px; align-items: center; }
+  .btn-login {
+    color: var(--muted); font-size: .85rem; text-decoration: none; font-weight: 600;
+    padding: 8px 14px; border-radius: 10px; transition: background .15s;
+  }
+  .btn-login:hover { background: var(--light); color: var(--dark); }
+  .btn-cta-sm {
+    background: var(--primary); color: #fff; font-size: .85rem; font-weight: 700;
+    padding: 9px 18px; border-radius: 10px; text-decoration: none; transition: background .15s;
+    white-space: nowrap;
+  }
+  .btn-cta-sm:hover { background: var(--primary-dark); }
+
+  /* ── Hero ── */
+  .hero {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    color: #fff; text-align: center;
+    padding: 60px 20px 80px;
+    position: relative; overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 60% 40%, rgba(255,107,53,.15) 0%, transparent 70%);
+  }
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(255,107,53,.2); color: #ff9a6c;
+    border: 1px solid rgba(255,107,53,.3);
+    border-radius: 20px; padding: 5px 14px; font-size: .75rem; font-weight: 700;
+    margin-bottom: 20px;
+  }
+  .hero h1 {
+    font-size: clamp(1.8rem, 6vw, 2.8rem); font-weight: 900;
+    line-height: 1.15; margin-bottom: 16px; position: relative;
+  }
+  .hero h1 em { color: var(--primary); font-style: normal; }
+  .hero p {
+    font-size: clamp(.9rem, 3vw, 1.05rem); color: rgba(255,255,255,.75);
+    max-width: 520px; margin: 0 auto 32px; line-height: 1.6;
+  }
+  .hero-cta {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--primary); color: #fff; font-weight: 800;
+    font-size: 1rem; padding: 16px 32px; border-radius: 14px;
+    text-decoration: none; transition: transform .15s, background .15s;
+    box-shadow: 0 8px 24px rgba(255,107,53,.4);
+  }
+  .hero-cta:hover { background: var(--primary-dark); transform: translateY(-2px); }
+  .hero-sub { margin-top: 16px; font-size: .78rem; color: rgba(255,255,255,.45); }
+
+  /* ── Social proof numbers ── */
+  .proof-strip {
+    background: var(--white); border-bottom: 1px solid var(--border);
+    padding: 24px 20px;
+  }
+  .proof-grid {
+    display: flex; justify-content: center; gap: 0;
+    max-width: 640px; margin: 0 auto;
+  }
+  .proof-item {
+    flex: 1; text-align: center; padding: 8px 10px;
+    border-right: 1px solid var(--border);
+  }
+  .proof-item:last-child { border-right: none; }
+  .proof-num { font-size: 1.6rem; font-weight: 900; color: var(--primary); }
+  .proof-label { font-size: .68rem; color: var(--muted); margin-top: 2px; }
+
+  /* ── Sections ── */
+  section { padding: 56px 20px; }
+  .section-tag {
+    font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--primary); margin-bottom: 8px;
+  }
+  .section-title {
+    font-size: clamp(1.3rem, 4vw, 1.8rem); font-weight: 900; line-height: 1.2;
+    margin-bottom: 12px; color: var(--dark);
+  }
+  .section-sub {
+    font-size: .9rem; color: var(--muted); max-width: 500px; line-height: 1.6;
+    margin-bottom: 36px;
+  }
+  .section-center { text-align: center; }
+  .section-center .section-sub { margin-left: auto; margin-right: auto; }
+
+  /* ── Features ── */
+  .features-section { background: var(--light); }
+  .features-grid {
+    display: grid; grid-template-columns: 1fr;
+    gap: 16px; max-width: 800px; margin: 0 auto;
+  }
+  @media (min-width: 600px) { .features-grid { grid-template-columns: 1fr 1fr; } }
+  .feature-card {
+    background: var(--white); border-radius: 16px; padding: 20px;
+    border: 1.5px solid var(--border); display: flex; gap: 14px; align-items: flex-start;
+  }
+  .feature-icon {
+    width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 1.1rem;
+  }
+  .feature-title { font-size: .9rem; font-weight: 800; margin-bottom: 4px; }
+  .feature-desc { font-size: .8rem; color: var(--muted); line-height: 1.5; }
+
+  /* ── How it works ── */
+  .steps-grid {
+    display: flex; flex-direction: column; gap: 20px;
+    max-width: 520px; margin: 0 auto;
+  }
+  .step-row { display: flex; gap: 16px; align-items: flex-start; }
+  .step-num {
+    width: 36px; height: 36px; border-radius: 50%; background: var(--primary);
+    color: #fff; font-weight: 900; font-size: .9rem;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .step-content h4 { font-size: .9rem; font-weight: 800; margin-bottom: 4px; }
+  .step-content p  { font-size: .82rem; color: var(--muted); line-height: 1.5; }
+
+  /* ── Testimonials ── */
+  .testimonials-section { background: var(--dark); color: #fff; }
+  .testimonials-section .section-title { color: #fff; }
+  .testimonials-section .section-sub   { color: rgba(255,255,255,.6); }
+  .testimonials-grid {
+    display: grid; grid-template-columns: 1fr; gap: 14px; max-width: 800px; margin: 0 auto;
+  }
+  @media (min-width: 600px) { .testimonials-grid { grid-template-columns: 1fr 1fr 1fr; } }
+  .testimonial-card {
+    background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+    border-radius: 16px; padding: 18px;
+  }
+  .testimonial-stars { color: #fbbf24; font-size: .8rem; margin-bottom: 10px; }
+  .testimonial-text { font-size: .82rem; color: rgba(255,255,255,.8); line-height: 1.6; margin-bottom: 14px; }
+  .testimonial-author { display: flex; align-items: center; gap: 10px; }
+  .testimonial-avatar {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--primary); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .8rem; font-weight: 800; flex-shrink: 0;
+  }
+  .testimonial-name { font-size: .8rem; font-weight: 700; }
+  .testimonial-meta { font-size: .7rem; color: rgba(255,255,255,.45); }
+
+  /* ── Plans ── */
+  .plans-section { background: var(--light); }
+  .plans-grid {
+    display: grid; grid-template-columns: 1fr; gap: 14px;
+    max-width: 720px; margin: 0 auto;
+  }
+  @media (min-width: 600px) { .plans-grid { grid-template-columns: 1fr 1fr 1fr; } }
+  .plan-card {
+    background: var(--white); border: 2px solid var(--border); border-radius: 18px;
+    padding: 22px; text-align: center; position: relative; transition: border-color .15s;
+  }
+  .plan-card.popular { border-color: var(--primary); }
+  .plan-popular-badge {
+    position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+    background: var(--primary); color: #fff; border-radius: 20px;
+    padding: 4px 14px; font-size: .65rem; font-weight: 800; white-space: nowrap;
+  }
+  .plan-name { font-size: .8rem; font-weight: 700; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .5px; }
+  .plan-credits { font-size: 2rem; font-weight: 900; color: var(--dark); }
+  .plan-credits-label { font-size: .75rem; color: var(--muted); margin-bottom: 12px; }
+  .plan-features { list-style: none; text-align: left; font-size: .8rem; color: var(--text); margin-bottom: 18px; }
+  .plan-features li { padding: 4px 0; display: flex; align-items: center; gap: 8px; }
+  .plan-features li i { color: var(--primary); font-size: .75rem; }
+  .btn-plan {
+    display: block; padding: 11px; border-radius: 12px; font-weight: 700;
+    font-size: .85rem; text-decoration: none; text-align: center; transition: opacity .15s;
+    cursor: pointer;
+  }
+  .btn-plan.primary { background: var(--primary); color: #fff; border: none; }
+  .btn-plan.outline { background: none; border: 2px solid var(--border); color: var(--dark); }
+  .btn-plan:hover { opacity: .85; }
+
+  /* ── Final CTA ── */
+  .final-cta {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: #fff; text-align: center; padding: 60px 20px;
+  }
+  .final-cta h2 { font-size: clamp(1.4rem, 4vw, 2rem); font-weight: 900; margin-bottom: 12px; }
+  .final-cta p  { font-size: .9rem; opacity: .9; margin-bottom: 28px; }
+  .btn-final {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: #fff; color: var(--primary); font-weight: 800;
+    font-size: 1rem; padding: 16px 36px; border-radius: 14px;
+    text-decoration: none; transition: transform .15s;
+    box-shadow: 0 8px 24px rgba(0,0,0,.2);
+  }
+  .btn-final:hover { transform: translateY(-2px); }
+
+  /* ── Footer ── */
+  footer {
+    background: var(--dark); color: rgba(255,255,255,.5);
+    text-align: center; padding: 20px; font-size: .78rem;
+  }
+  footer a { color: rgba(255,255,255,.5); text-decoration: none; }
+  footer a:hover { color: #fff; }
+  </style>
+</head>
+<body>
+
+<!-- Topbar -->
+<header class="topbar">
+  <a class="topbar-logo" href="#"><i class="fas fa-bolt me-1" style="color:var(--primary)"></i>Academia<span>Pro</span></a>
+  <div class="topbar-actions">
+    <a class="btn-login" href="{{ url_for('auth.login') }}">Entrar</a>
+    <a class="btn-cta-sm" href="{{ url_for('onboarding.quiz') }}">Começar grátis</a>
+  </div>
+</header>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-badge"><i class="fas fa-star"></i> Mais de 500 alunos transformados</div>
+  <h1>Seu treino <em>inteligente</em>,<br>do seu jeito.</h1>
+  <p>Descubra a modalidade certa para o seu objetivo, agende uma aula demonstrativa gratuita e comece sua transformação hoje.</p>
+  <a class="hero-cta" href="{{ url_for('onboarding.quiz') }}">
+    <i class="fas fa-arrow-right"></i> Fazer meu quiz gratuito
+  </a>
+  <p class="hero-sub">Leva menos de 2 minutos · Sem cartão de crédito</p>
+</section>
+
+<!-- Social proof strip -->
+<div class="proof-strip">
+  <div class="proof-grid">
+    <div class="proof-item">
+      <div class="proof-num">500+</div>
+      <div class="proof-label">Alunos ativos</div>
+    </div>
+    <div class="proof-item">
+      <div class="proof-num">4.9★</div>
+      <div class="proof-label">Avaliação média</div>
+    </div>
+    <div class="proof-item">
+      <div class="proof-num">20+</div>
+      <div class="proof-label">Modalidades</div>
+    </div>
+    <div class="proof-item">
+      <div class="proof-num">98%</div>
+      <div class="proof-label">Satisfação</div>
+    </div>
+  </div>
+</div>
+
+<!-- Features -->
+<section class="features-section">
+  <div style="max-width:800px;margin:0 auto">
+    <div class="section-tag">Por que a gente</div>
+    <div class="section-title">Tecnologia a serviço<br>do seu desempenho</div>
+    <div class="section-sub">Combinamos EZBody (EMS) e musculação com um sistema inteligente de agendamento para você treinar melhor, não mais.</div>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon" style="background:#fff3ec;color:var(--primary)"><i class="fas fa-bolt"></i></div>
+        <div>
+          <div class="feature-title">EZBody — 20 min = 2h de treino</div>
+          <div class="feature-desc">Eletroestimulação muscular que ativa 90% dos músculos simultaneamente. Máximo resultado, mínimo tempo.</div>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:#dbeafe;color:#1e40af"><i class="fas fa-dumbbell"></i></div>
+        <div>
+          <div class="feature-title">Musculação orientada</div>
+          <div class="feature-desc">Treinos com instrutores certificados focados no seu objetivo, seja emagrecimento, hipertrofia ou reabilitação.</div>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:#d1fae5;color:#065f46"><i class="fas fa-calendar-check"></i></div>
+        <div>
+          <div class="feature-title">Agendamento online</div>
+          <div class="feature-desc">Reserve suas aulas pelo celular a qualquer hora. Cancele com até 4h de antecedência sem perder o crédito.</div>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:#ede9fe;color:#5b21b6"><i class="fas fa-chart-line"></i></div>
+        <div>
+          <div class="feature-title">Acompanhe sua evolução</div>
+          <div class="feature-desc">Dashboard de progresso, histórico de treinos e sistema de créditos flexível para você treinar no seu ritmo.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- How it works -->
+<section>
+  <div style="max-width:520px;margin:0 auto;text-align:center">
+    <div class="section-tag section-center">Como funciona</div>
+    <div class="section-title section-center">4 passos para<br>começar hoje</div>
+    <div class="section-sub section-center">Processo 100% online e sem burocracia.</div>
+  </div>
+  <div class="steps-grid">
+    <div class="step-row">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <h4>Faça o quiz de perfil</h4>
+        <p>Responda 5 perguntas rápidas sobre seus objetivos, disponibilidade e experiência.</p>
+      </div>
+    </div>
+    <div class="step-row">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <h4>Receba sua sugestão personalizada</h4>
+        <p>Nossa IA indica as melhores modalidades para o seu perfil e objetivo.</p>
+      </div>
+    </div>
+    <div class="step-row">
+      <div class="step-num">3</div>
+      <div class="step-content">
+        <h4>Agende sua aula demonstrativa grátis</h4>
+        <p>Escolha o horário que encaixa na sua rotina. A primeira aula é por nossa conta.</p>
+      </div>
+    </div>
+    <div class="step-row">
+      <div class="step-num">4</div>
+      <div class="step-content">
+        <h4>Escolha seu plano e comece</h4>
+        <p>Após a aula demo, escolha o plano ideal e comece a transformação de verdade.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Testimonials -->
+<section class="testimonials-section">
+  <div style="max-width:800px;margin:0 auto;text-align:center">
+    <div class="section-tag" style="color:#ff9a6c">Depoimentos</div>
+    <div class="section-title">O que nossos alunos dizem</div>
+    <div class="section-sub" style="margin:0 auto 32px">Resultados reais de pessoas reais.</div>
+  </div>
+  <div class="testimonials-grid" style="max-width:800px;margin:0 auto">
+    <div class="testimonial-card">
+      <div class="testimonial-stars">★★★★★</div>
+      <p class="testimonial-text">"Em 3 meses de EZBody perdi 8kg e nunca fiquei mais de 25 min na academia. Incrível!"</p>
+      <div class="testimonial-author">
+        <div class="testimonial-avatar">AC</div>
+        <div>
+          <div class="testimonial-name">Ana C.</div>
+          <div class="testimonial-meta">EZBody · 4 meses</div>
+        </div>
+      </div>
+    </div>
+    <div class="testimonial-card">
+      <div class="testimonial-stars">★★★★★</div>
+      <p class="testimonial-text">"Sistema de agendamento é muito fácil. Consigo marcar e cancelar pelo celular sem stress."</p>
+      <div class="testimonial-author">
+        <div class="testimonial-avatar">RM</div>
+        <div>
+          <div class="testimonial-name">Rafael M.</div>
+          <div class="testimonial-meta">Musculação · 6 meses</div>
+        </div>
+      </div>
+    </div>
+    <div class="testimonial-card">
+      <div class="testimonial-stars">★★★★★</div>
+      <p class="testimonial-text">"O quiz me ajudou a entender qual treino era pra mim. A aula demonstrativa grátis foi o que me convenceu."</p>
+      <div class="testimonial-author">
+        <div class="testimonial-avatar">JS</div>
+        <div>
+          <div class="testimonial-name">Juliana S.</div>
+          <div class="testimonial-meta">Plano Híbrido · 2 meses</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Plans -->
+<section class="plans-section">
+  <div style="max-width:720px;margin:0 auto;text-align:center">
+    <div class="section-tag">Planos</div>
+    <div class="section-title">Flexível para a sua rotina</div>
+    <div class="section-sub" style="margin:0 auto 36px">Créditos sem vencimento. Use quando e quanto quiser.</div>
+  </div>
+  <div class="plans-grid">
+    <div class="plan-card">
+      <div class="plan-name">Starter</div>
+      <div class="plan-credits">4</div>
+      <div class="plan-credits-label">créditos</div>
+      <ul class="plan-features">
+        <li><i class="fas fa-check"></i>4 aulas à sua escolha</li>
+        <li><i class="fas fa-check"></i>Sem mensalidade</li>
+        <li><i class="fas fa-check"></i>Cancele sem custo</li>
+      </ul>
+      <a class="btn-plan outline" href="{{ url_for('onboarding.quiz') }}">Começar</a>
+    </div>
+    <div class="plan-card popular">
+      <div class="plan-popular-badge">⭐ Mais popular</div>
+      <div class="plan-name">Semanal</div>
+      <div class="plan-credits">8</div>
+      <div class="plan-credits-label">créditos / mês</div>
+      <ul class="plan-features">
+        <li><i class="fas fa-check"></i>2x por semana</li>
+        <li><i class="fas fa-check"></i>EZBody ou Musculação</li>
+        <li><i class="fas fa-check"></i>Acompanhamento de progresso</li>
+      </ul>
+      <a class="btn-plan primary" href="{{ url_for('onboarding.quiz') }}">Quero este</a>
+    </div>
+    <div class="plan-card">
+      <div class="plan-name">Híbrido</div>
+      <div class="plan-credits">16</div>
+      <div class="plan-credits-label">créditos / mês</div>
+      <ul class="plan-features">
+        <li><i class="fas fa-check"></i>EZBody + Musculação</li>
+        <li><i class="fas fa-check"></i>4–5x por semana</li>
+        <li><i class="fas fa-check"></i>Máxima transformação</li>
+      </ul>
+      <a class="btn-plan outline" href="{{ url_for('onboarding.quiz') }}">Começar</a>
+    </div>
+  </div>
+</section>
+
+<!-- Final CTA -->
+<section class="final-cta">
+  <h2>Pronto para começar sua transformação?</h2>
+  <p>Faça o quiz agora, agende sua aula demonstrativa gratuita e dê o primeiro passo.</p>
+  <a class="btn-final" href="{{ url_for('onboarding.quiz') }}">
+    <i class="fas fa-arrow-right"></i> Fazer o quiz gratuito
+  </a>
+</section>
+
+<!-- Footer -->
+<footer>
+  <p>© 2025 AcademiaPro · <a href="{{ url_for('auth.login') }}">Área do aluno</a></p>
+</footer>
+
+</body>
+</html>

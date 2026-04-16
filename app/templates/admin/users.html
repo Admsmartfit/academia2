@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+{% block title %}Usuários — Admin{% endblock %}
+
+{% block extra_css %}
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+body { background: #f1f3f5; }
+.admin-topbar {
+  background: #212529; color: #fff;
+  padding: 14px 20px; display: flex; align-items: center; gap: 12px;
+  position: sticky; top: 0; z-index: 200;
+}
+.admin-topbar h1 { font-size: 1rem; font-weight: 700; margin: 0; flex: 1; }
+.admin-topbar a  { color: rgba(255,255,255,.7); text-decoration: none; font-size: .8rem; }
+.admin-topbar a:hover { color: #fff; }
+
+.admin-body { max-width: 960px; margin: 0 auto; padding: 16px; }
+
+/* Role strip */
+.role-strip {
+  display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px;
+  margin-bottom: 16px; -webkit-overflow-scrolling: touch;
+}
+.role-pill {
+  display: flex; flex-direction: column; align-items: center;
+  background: #fff; border: 2px solid #dee2e6; border-radius: 12px;
+  padding: 8px 14px; min-width: 80px; flex-shrink: 0;
+  cursor: pointer; text-decoration: none; transition: all .15s;
+}
+.role-pill:hover, .role-pill.active { border-color: var(--primary-color); background: #fff3ec; }
+.role-pill.all.active { border-color: #212529; background: #212529; color: #fff; }
+.rp-count { font-size: 1.2rem; font-weight: 800; color: #212529; }
+.rp-label { font-size: .62rem; text-transform: uppercase; color: #6c757d; margin-top: 1px; }
+.role-pill.active .rp-count { color: var(--primary-color); }
+.role-pill.all.active .rp-count, .role-pill.all.active .rp-label { color: #fff; }
+
+/* Search bar */
+.search-bar {
+  display: flex; gap: 8px; margin-bottom: 14px;
+}
+.search-bar input {
+  flex: 1; padding: 9px 14px; border: 1.5px solid #dee2e6; border-radius: 10px;
+  font-size: .85rem; outline: none;
+}
+.search-bar input:focus { border-color: var(--primary-color); }
+.btn-search {
+  padding: 9px 16px; background: var(--primary-color); color: #fff;
+  border: none; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: .82rem;
+}
+
+/* Table */
+.users-table-wrap {
+  background: #fff; border-radius: 14px; overflow: hidden;
+  border: 1.5px solid #dee2e6; margin-top: 4px;
+}
+.users-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+.users-table th {
+  background: #f8f9fa; padding: 11px 14px; text-align: left;
+  font-weight: 700; font-size: .72rem; text-transform: uppercase;
+  color: #6c757d; border-bottom: 2px solid #e9ecef;
+}
+.users-table td {
+  padding: 10px 14px; border-bottom: 1px solid #f0f0f0; vertical-align: middle;
+}
+.users-table tr:last-child td { border-bottom: none; }
+.users-table tr:hover td { background: #fafafa; }
+
+.role-badge {
+  display: inline-block; border-radius: 20px; padding: 3px 9px;
+  font-size: .65rem; font-weight: 700; white-space: nowrap;
+}
+.role-admin      { background: #ffe4cc; color: #c0440e; }
+.role-instructor { background: #dbeafe; color: #1e40af; }
+.role-student    { background: #e9ecef; color: #495057; }
+
+.status-dot {
+  display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px;
+}
+.status-dot.active   { background: #198754; }
+.status-dot.inactive { background: #dc3545; }
+
+.btn-icon {
+  background: none; border: none; cursor: pointer; padding: 5px 8px;
+  border-radius: 8px; font-size: .8rem; transition: background .12s;
+  color: #6c757d;
+}
+.btn-icon:hover { background: #f0f0f0; color: #212529; }
+.btn-icon.danger:hover { background: #fde8e8; color: #b91c1c; }
+.btn-icon.success:hover { background: #d1fae5; color: #065f46; }
+
+/* Create button */
+.btn-create {
+  background: var(--primary-color); color: #fff; border: none;
+  border-radius: 10px; padding: 9px 16px; font-size: .82rem; font-weight: 700;
+  cursor: pointer; text-decoration: none; display: inline-flex;
+  align-items: center; gap: 6px; transition: background .15s;
+}
+.btn-create:hover { background: #e0531d; color: #fff; }
+
+/* Offcanvas panel */
+.offcanvas-panel {
+  display: none; position: fixed; inset: 0; z-index: 1050;
+  background: rgba(0,0,0,.45); align-items: flex-end; justify-content: center;
+}
+.offcanvas-panel.open { display: flex; }
+@media (min-width: 600px) {
+  .offcanvas-panel { align-items: center; }
+  .offcanvas-box { border-radius: 18px !important; max-width: 420px; }
+}
+.offcanvas-box {
+  background: #fff; width: 100%; padding: 24px;
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -10px 40px rgba(0,0,0,.15);
+  max-height: 90vh; overflow-y: auto;
+}
+.offcanvas-title { font-size: 1rem; font-weight: 800; margin-bottom: 18px; }
+.form-group { margin-bottom: 12px; }
+.form-group label { font-size: .78rem; font-weight: 600; color: #495057; display: block; margin-bottom: 4px; }
+.form-group input, .form-group select {
+  width: 100%; padding: 10px 12px;
+  border: 1.5px solid #dee2e6; border-radius: 10px;
+  font-size: .85rem; outline: none; background: #fff;
+}
+.form-group input:focus, .form-group select:focus { border-color: var(--primary-color); }
+.panel-actions { display: flex; gap: 8px; margin-top: 16px; }
+.btn-cancel {
+  flex: 1; padding: 11px; border: 2px solid #dee2e6; background: none;
+  border-radius: 10px; font-weight: 600; cursor: pointer; color: #6c757d;
+}
+.btn-submit {
+  flex: 1; padding: 11px; background: var(--primary-color); color: #fff;
+  border: none; border-radius: 10px; font-weight: 700; cursor: pointer;
+}
+
+.empty-users { text-align: center; padding: 48px 20px; color: #adb5bd; }
+.empty-users i { font-size: 2.5rem; display: block; margin-bottom: 10px; opacity: .3; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="admin-topbar">
+  <a href="{{ url_for('admin.leads') }}"><i class="fas fa-arrow-left"></i></a>
+  <h1><i class="fas fa-users-cog me-2"></i>Gestão de Usuários</h1>
+  <button class="btn-create" onclick="openPanel('panel-create')">
+    <i class="fas fa-plus"></i>Novo Usuário
+  </button>
+</div>
+
+<div class="admin-body">
+
+  <!-- Role strip -->
+  <div class="role-strip">
+    <a class="role-pill all {{ 'active' if not role_filter }}" href="{{ url_for('admin.users') }}">
+      <span class="rp-count">{{ role_counts.values()|sum }}</span>
+      <span class="rp-label">Todos</span>
+    </a>
+    <a class="role-pill {{ 'active' if role_filter == 'student' }}" href="{{ url_for('admin.users', role='student') }}">
+      <span class="rp-count">{{ role_counts.get('student', 0) }}</span>
+      <span class="rp-label">Alunos</span>
+    </a>
+    <a class="role-pill {{ 'active' if role_filter == 'instructor' }}" href="{{ url_for('admin.users', role='instructor') }}">
+      <span class="rp-count">{{ role_counts.get('instructor', 0) }}</span>
+      <span class="rp-label">Instrutores</span>
+    </a>
+    <a class="role-pill {{ 'active' if role_filter == 'admin' }}" href="{{ url_for('admin.users', role='admin') }}">
+      <span class="rp-count">{{ role_counts.get('admin', 0) }}</span>
+      <span class="rp-label">Admins</span>
+    </a>
+  </div>
+
+  <!-- Search bar -->
+  <form method="GET" action="{{ url_for('admin.users') }}" class="search-bar">
+    {% if role_filter %}<input type="hidden" name="role" value="{{ role_filter }}">{% endif %}
+    <input type="text" name="q" value="{{ q_search }}" placeholder="Buscar por nome, e-mail ou telefone…">
+    <button type="submit" class="btn-search"><i class="fas fa-search"></i></button>
+  </form>
+
+  <!-- Flash messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+    <div class="alert alert-{{ 'success' if cat == 'success' else 'warning' if cat == 'warning' else 'danger' }} mb-3"
+         style="border-radius:10px;font-size:.82rem">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <!-- Table -->
+  <div class="users-table-wrap">
+    {% if users %}
+    <table class="users-table">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Contato</th>
+          <th>Papel</th>
+          <th>Status</th>
+          <th>Criado em</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td><strong>{{ u.name }}</strong></td>
+          <td style="color:#6c757d">
+            {{ u.email }}<br>
+            <small>{{ u.phone }}</small>
+          </td>
+          <td>
+            <span class="role-badge role-{{ u.role }}">
+              {{ {'admin':'Admin','instructor':'Instrutor','student':'Aluno'}.get(u.role, u.role) }}
+            </span>
+          </td>
+          <td>
+            <span class="status-dot {{ 'active' if u.is_active else 'inactive' }}"></span>
+            {{ 'Ativo' if u.is_active else 'Inativo' }}
+          </td>
+          <td style="color:#6c757d;font-size:.75rem">
+            {{ u.created_at.strftime('%d/%m/%y') if u.created_at else '—' }}
+          </td>
+          <td style="white-space:nowrap">
+            <!-- Reset password -->
+            <button class="btn-icon"
+                    title="Redefinir senha"
+                    onclick="openReset({{ u.id }}, '{{ u.name | replace("'", "\\'") }}')">
+              <i class="fas fa-key"></i>
+            </button>
+            <!-- Toggle active -->
+            <form action="{{ url_for('admin.user_toggle', user_id=u.id) }}" method="POST"
+                  style="display:inline"
+                  onsubmit="return confirm('{{ 'Desativar' if u.is_active else 'Ativar' }} {{ u.name }}?')">
+              <button type="submit"
+                      class="btn-icon {{ 'danger' if u.is_active else 'success' }}"
+                      title="{{ 'Desativar' if u.is_active else 'Ativar' }}">
+                <i class="fas {{ 'fa-user-slash' if u.is_active else 'fa-user-check' }}"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-users">
+      <i class="fas fa-users"></i>
+      <p>Nenhum usuário encontrado.</p>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- Create user panel -->
+<div class="offcanvas-panel" id="panel-create">
+  <div class="offcanvas-box">
+    <div class="offcanvas-title"><i class="fas fa-user-plus me-2"></i>Novo Usuário</div>
+    <form action="{{ url_for('admin.user_create') }}" method="POST">
+      <div class="form-group">
+        <label>Nome completo</label>
+        <input type="text" name="name" placeholder="Ex.: Ana Souza" required>
+      </div>
+      <div class="form-group">
+        <label>E-mail</label>
+        <input type="email" name="email" placeholder="ana@email.com" required>
+      </div>
+      <div class="form-group">
+        <label>Telefone</label>
+        <input type="text" name="phone" placeholder="(11) 99999-9999" required>
+      </div>
+      <div class="form-group">
+        <label>Papel</label>
+        <select name="role">
+          <option value="student">Aluno</option>
+          <option value="instructor">Instrutor</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Senha inicial</label>
+        <input type="password" name="password" placeholder="Mínimo 6 caracteres" required minlength="6">
+      </div>
+      <div class="panel-actions">
+        <button type="button" class="btn-cancel" onclick="closePanel('panel-create')">Cancelar</button>
+        <button type="submit" class="btn-submit"><i class="fas fa-plus me-1"></i>Criar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Reset password panel -->
+<div class="offcanvas-panel" id="panel-reset">
+  <div class="offcanvas-box">
+    <div class="offcanvas-title"><i class="fas fa-key me-2"></i>Redefinir Senha</div>
+    <p id="reset-user-name" style="font-size:.85rem;color:#6c757d;margin-bottom:16px"></p>
+    <form id="form-reset" action="" method="POST">
+      <div class="form-group">
+        <label>Nova senha</label>
+        <input type="password" name="password" placeholder="Mínimo 6 caracteres" required minlength="6">
+      </div>
+      <div class="panel-actions">
+        <button type="button" class="btn-cancel" onclick="closePanel('panel-reset')">Cancelar</button>
+        <button type="submit" class="btn-submit"><i class="fas fa-save me-1"></i>Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openPanel(id) {
+  document.getElementById(id).classList.add('open');
+}
+function closePanel(id) {
+  document.getElementById(id).classList.remove('open');
+}
+function openReset(userId, userName) {
+  document.getElementById('reset-user-name').textContent = 'Usuário: ' + userName;
+  document.getElementById('form-reset').action = '/admin/users/' + userId + '/reset';
+  openPanel('panel-reset');
+}
+// Close panel on backdrop click
+document.querySelectorAll('.offcanvas-panel').forEach(panel => {
+  panel.addEventListener('click', e => { if (e.target === panel) panel.classList.remove('open'); });
+});
+</script>
+{% endblock %}
